@@ -1,0 +1,54 @@
+# Vendored upstream sources for skill development (large, redistribution-sensitive).
+# Recreate with `bash scripts/setup-vendor.sh`.
+vendor/
+
+# Build artefacts
+build/
+build-*/
+out/
+dist/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.pdb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+_deps/
+compile_commands.json
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python (skill-creator helpers)
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Skill-creator eval workspaces (per-iteration, large)
+*-workspace/
+.eval-workspace/
+
+# Local scratch
+.scratch/
+*.log

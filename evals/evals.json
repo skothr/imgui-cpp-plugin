@@ -1,0 +1,26 @@
+{
+  "skill_name": "imgui-cpp-development",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to start a fresh C++ project that uses Dear ImGui. Target: a basic tools window I can hack on, with the ImGui demo window visible so I can browse what's available. I'm on Linux, I have CMake and clang installed. Just get me to a working hello-world I can build and run.",
+      "expected_output": "A scaffolded project with CMakeLists.txt (FetchContent for imgui v1.92.x docking + GLFW), src/main.cpp (with NewFrame/Render lifecycle, ShowDemoWindow, modern conventions), and clear build/run instructions. RAII guards used in any sample code.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 2,
+      "prompt": "I'm building an editor in C++ with Dear ImGui (docking branch). I have a list of opened tabs and each tab has a 'Delete' button next to its name. Problem: clicking 'Delete' on tab #3 deletes tab #0. What is going on?\n\n```cpp\nfor (auto& tab : tabs) {\n    if (ImGui::Button(\"Delete\")) {\n        delete_tab(tab);\n    }\n    ImGui::SameLine();\n    ImGui::TextUnformatted(tab.name.c_str());\n}\n```",
+      "expected_output": "Identifies the issue as ImGui ID stack collision: every Button(\"Delete\") in the loop has the same label and same parent ID, so ImGui treats them as one button and reports clicks against the FIRST one. Fix: wrap each iteration in PushID/PopID (preferably via an RAII guard like ImScoped::ID{&tab} or {i}). Should mention the ## or ### suffix as alternative.",
+      "files": [],
+      "assertions": []
+    },
+    {
+      "id": 3,
+      "prompt": "I have this code in my Dear ImGui app and the child window keeps growing taller every frame until it fills the viewport. What's wrong and how do I fix it?\n\n```cpp\nImGui::BeginChild(\"##editor\", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);\nfor (auto& line : code_lines) {\n    ImGui::TextUnformatted(line.c_str());\n}\nImGui::EndChild();\n```\n\nThe `code_lines` vector doesn't change between frames.",
+      "expected_output": "Identifies the AutoResizeY + content-determines-size feedback loop: AutoResizeY makes the child grow to fit content, but text wrapping inside the child depends on the available width which depends on the child's size. Fix recommendations: (a) pin a fixed height via ImVec2(0, k_height); (b) use SetNextWindowSizeConstraints to bound growth; (c) use ImGuiChildFlags_ResizeY to give the user control. Should reference layout-and-sizing.md for deeper detail.",
+      "files": [],
+      "assertions": []
+    }
+  ]
+}

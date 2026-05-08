@@ -1,0 +1,82 @@
+[
+  {
+    "query": "yo can you help me set up dear imgui in my c++ project? im on linux with cmake. just want to render the demo window first",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm building an editor in cpp using ImGui::Begin in third_party/imgui — when I click Delete on the second tab it deletes the first one. Why is this happening",
+    "should_trigger": true
+  },
+  {
+    "query": "I'm trying to make a tool window with a docking layout. ImGui v1.92, opengl3+glfw backend. how do i get DockSpace going?",
+    "should_trigger": true
+  },
+  {
+    "query": "my child window keeps growing one pixel each frame in this widget tree, i'm using BeginChild with AutoResizeY",
+    "should_trigger": true
+  },
+  {
+    "query": "I need to write a custom widget with hit testing — I want a circular knob that responds to mouse drag for rotation. Audio plugin in C++23, using an immediate-mode UI lib in third_party/imgui",
+    "should_trigger": true
+  },
+  {
+    "query": "in the file `src/ui/inspector.cpp` i have a giant ImGui submission function — how should I split this without breaking the docking persistence in the .ini file?",
+    "should_trigger": true
+  },
+  {
+    "query": "i'm seeing tiny squares instead of font glyphs after upgrading. opengl3 backend with the v1.92 docking branch. used to work on 1.90",
+    "should_trigger": true
+  },
+  {
+    "query": "ItemAdd + ButtonBehavior in dear imgui — i'm trying to write a custom slider widget that works with keyboard nav and shows a tooltip on hover",
+    "should_trigger": true
+  },
+  {
+    "query": "how do I keep ImGui::BeginPopupModal from closing immediately when the user presses Escape? I want Esc to leave it open until they click Cancel",
+    "should_trigger": true
+  },
+  {
+    "query": "we're upgrading from imgui 1.91 to 1.92.7 and our InputText fields stopped saving state across frames. is that related to the changelog?",
+    "should_trigger": true
+  },
+  {
+    "query": "I want to build a Qt application with QWidgets that has a docking system. No immediate-mode rendering, just standard MOC-based UI in C++17.",
+    "should_trigger": false
+  },
+  {
+    "query": "Help me design a CMakeLists.txt for a C++23 game that uses GLFW + OpenGL for windowing. Just a sphere rotating with mouse input — no GUI library yet.",
+    "should_trigger": false
+  },
+  {
+    "query": "How do I generate a font atlas in my custom OpenGL renderer? I'm building my own UI library from scratch in C++23, want to handle FreeType + signed-distance-field rendering.",
+    "should_trigger": false
+  },
+  {
+    "query": "We're using react-flow for our node editor in our TypeScript app. Need to add custom widgets for tooltips and drag-and-drop reordering of nodes.",
+    "should_trigger": false
+  },
+  {
+    "query": "In our SDL2-based shmup, I'm having trouble with the player ID stack overflowing when too many bullets register hits in one frame. Bullets push their owner ID before applying damage.",
+    "should_trigger": false
+  },
+  {
+    "query": "Show me how to debug a memory leak in my C++ networking server — I think it's in the loop where I push connection events into a queue. ASan is showing 4MB lost per second.",
+    "should_trigger": false
+  },
+  {
+    "query": "I want to write a custom window manager for X11 that handles docking of arbitrary OS-level windows like i3wm does. Clean C++23 codebase.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a CI pipeline for my C++ rendering library with GoogleTest, clang-tidy, and gcov. The project uses CMake + Conan.",
+    "should_trigger": false
+  },
+  {
+    "query": "Help me migrate from Win32 GDI to Direct2D for my custom desktop UI framework. The framework has its own widgets, layout system, and event loop.",
+    "should_trigger": false
+  },
+  {
+    "query": "Refactor this React component to use TypeScript generics for the data-grid widgets we're rolling. Need stronger typing on the cell renderers.",
+    "should_trigger": false
+  }
+]

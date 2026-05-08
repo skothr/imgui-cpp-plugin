@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-imgui-cpp",
+  "description": "A single-plugin marketplace publishing the imgui-cpp Dear ImGui development plugin.",
+  "owner": {
+    "name": "Michael Lannum",
+    "email": "skothr@gmail.com",
+    "url": "https://github.com/skothr"
+  },
+  "plugins": [
+    {
+      "name": "imgui-cpp",
+      "description": "Dear ImGui (v1.92.x docking) development skill for Claude Code, with slash commands for bootstrap / locate / review / pin. Recommends modern C++23 idioms (RAII scope guards, std::expected, std::print).",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}

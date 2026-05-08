@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "imgui-cpp",
+  "description": "Dear ImGui (v1.92.x docking) development skill for Claude Code: routes ImGui-related work through focused sub-docs covering bootstrap, frame loop, ID stack, layout/sizing, fonts/DPI, docking + viewports, tables, modals, widget recipes, custom widgets, the v1.92 changelog, RAII scope guards, headless testing, LSP navigation, and the OpenGL3+GLFW backend. Recommends modern C++23 idioms (RAII guards, std::expected, std::print).",
+  "version": "0.1.0",
+  "author": {
+    "name": "Michael Lannum",
+    "email": "skothr@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "imgui",
+    "dear-imgui",
+    "c++",
+    "cpp23",
+    "graphics",
+    "ui",
+    "opengl",
+    "glfw"
+  ]
+}
