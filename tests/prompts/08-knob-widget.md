@@ -6,4 +6,4 @@ I'm prototyping an audio plugin UI in C++ and need a custom Dear ImGui rotary-kn
 
 Provide a small demo `main.cpp` that shows three knobs in a single window: gain(0..2), pan(-1..1), and cutoff(20..20000, log-scale). Print to stdout whenever any knob's value changes.
 
-C++23, Linux, GLFW + OpenGL3, docking branch v1.92.x. Output everything under `tests/08-knob-widget/`. No need to compile.
+C++23, Linux, GLFW + OpenGL3, docking branch v1.92.x. Output everything under `08-knob-widget/` (relative to your current directory). No need to compile.

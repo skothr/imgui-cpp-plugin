@@ -9,4 +9,4 @@ I want an IDE-style Dear ImGui layout for a game-engine editor I'm starting. Tar
 - The first-run layout should set itself up automatically so users get a sensible default. Subsequent runs should respect any user-adjusted layout.
 - Panels should be detachable into native OS windows when the user drags them out.
 
-GLFW + OpenGL3 backend, C++23, Linux. Output the full project under `tests/07-docking-editor-layout/` with a README that includes the build/run commands. No need to actually compile.
+GLFW + OpenGL3 backend, C++23, Linux. Output the full project under `07-docking-editor-layout/` (relative to your current directory) with a README that includes the build/run commands. No need to actually compile.

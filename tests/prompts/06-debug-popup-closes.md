@@ -38,4 +38,4 @@ void Inspector::draw() {
 }
 ```
 
-What's wrong, why does it manifest as a one-frame flash, and what's the fix? Save your reply (markdown, with the corrected code block) to `tests/06-debug-popup-closes/response.md`.
+What's wrong, why does it manifest as a one-frame flash, and what's the fix? Save your reply (markdown, with the corrected code block) to `06-debug-popup-closes/response.md` (relative to your current directory).

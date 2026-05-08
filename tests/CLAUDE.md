@@ -8,7 +8,8 @@ This file is read by Claude when a test session starts inside `tests/`. It is in
 
 - The `imgui-cpp:imgui-cpp-development` skill is expected to be loaded and active. Other `imgui-cpp:*` slash commands should also be visible: `imgui-bootstrap`, `imgui-locate`, `imgui-review`, `imgui-pin`. If any of those are missing from the available-skills list at session start, **STOP and tell the user** — that's a triggering / install regression and the test result isn't valid until it's fixed.
 - The user's first real message in a test session is usually the verbatim contents of one of the files under `prompts/`. Don't second-guess it; treat it as the actual user message.
-- Each prompt names an **output subdirectory** under `tests/<NN>-<slug>/`. Create it and put every artifact there. **DO NOT scribble in the parent project tree** (`skills/`, `commands/`, `.claude-plugin/`, `assets/`, `references/`, etc.) — those are the installed plugin's source and must not be mutated by a test run. The test's job is to demonstrate the skill, not to edit it.
+- Your **current working directory is `tests/` itself**. Output paths in the prompts are written *relative to your cwd*, e.g. `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` from the repo's perspective. Don't double-prefix with `tests/`.
+- Each prompt names an output subdirectory like `<NN>-<slug>/`. Create it under your cwd and put every artifact there. **DO NOT scribble in the parent project tree** (`../skills/`, `../commands/`, `../.claude-plugin/`, `../assets/`, `../references/`, etc.) — those are the installed plugin's source and must not be mutated by a test run. The test's job is to demonstrate the skill, not to edit it.
 
 ## Per-prompt expectations
 

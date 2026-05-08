@@ -7,4 +7,4 @@ Behaviour I need:
 - Row-background striping for readability.
 - Should still feel responsive if the list grew to a few thousand entries — I might add that later.
 
-C++23, GLFW + OpenGL3, docking branch. Output under `tests/03-sortable-file-table/` with a README. No need to actually compile.
+C++23, GLFW + OpenGL3, docking branch. Output under `03-sortable-file-table/` (relative to your current directory) with a README. No need to actually compile.
