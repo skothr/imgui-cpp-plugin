@@ -19,52 +19,54 @@ See [CLAUDE.md](CLAUDE.md) for the test-session contract (what the session is al
 
 ## Running a test
 
-The wrapper `tests/run-prompt.sh` handles env-isolation and (optionally) transcript capture:
+The wrapper `tests/run-prompt.sh` runs a prompt non-interactively via `claude -p`, streams the output live to your terminal, and saves a transcript locally:
 
 ```bash
-cd <repo-root>/tests   # or, while iterating, the worktree's tests/
+cd <repo-root>/tests   # or the worktree's tests/ while iterating
 
-# Interactive (recommended for live observation): you watch routing + tool-use happen.
-# CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 is auto-set so the run doesn't pollute ~/.claude.
+# Default: text output, streamed to terminal AND saved to transcripts/<NN>-<slug>__<UTC>.txt
 ./run-prompt.sh 04-debug-delete-button
-# Then in the running session, paste the contents of prompts/04-debug-delete-button.md
-# (use your clipboard / editor — claude pipes stdin into print mode, no clean
-# "pre-fill the prompt and stay interactive" flag exists).
 
-# Non-interactive (archival): captures the full transcript locally as JSONL.
-./run-prompt.sh 04-debug-delete-button --capture
-# Transcript saved to tests/transcripts/04-debug-delete-button__<UTC>.jsonl
+# Full stream-json (every tool use, every partial message — useful for grading):
+./run-prompt.sh 04-debug-delete-button --json
+# saved to transcripts/04-debug-delete-button__<UTC>.jsonl
 ```
 
-Output paths in the prompts are **relative to your cwd (`tests/`)**. So a prompt that says `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` on disk.
+The wrapper:
+
+- Echoes the prompt up front so the transcript is self-contained.
+- Sets `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` so the run doesn't pollute `~/.claude/history.jsonl` or the per-project transcript dir.
+- Tees `claude -p`'s stream output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored, so you only commit transcripts intentionally (e.g., as evidence of a memorable failure).
+
+Output paths in the prompts are **relative to your cwd (`tests/`)**. A prompt that says `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` on disk.
 
 After the run:
 
 1. Inspect the produced `<NN>-<slug>/` subdir for the artifacts.
-2. If you used `--capture`, open the JSONL transcript and grade routing + tool use against `prompts/README.md`'s rubric.
-3. Note misbehavior either in a Linear `friction` issue, or as a new test case under `evals/`, or both.
+2. Grade routing decisions and idiom adoption against `prompts/README.md`'s rubric. The `--json` transcript makes tool-use grading much easier than reading text.
+3. Note misbehavior in a Linear `friction` issue or as a new test case under `evals/`, or both.
 
 ### Manual equivalent (skip the wrapper)
 
 ```bash
 cd <repo-root>/tests
-CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude              # interactive
-# or, archival:
+ts=$(date -u +%Y%m%dT%H%M%SZ)
+CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude -p "$(cat prompts/<NN>-<slug>.md)" 2>&1 \
+    | tee transcripts/<NN>-<slug>__${ts}.txt
+# or with full stream-json:
 CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude -p "$(cat prompts/<NN>-<slug>.md)" \
-    --output-format stream-json \
-    > transcripts/<NN>-<slug>__$(date -u +%Y%m%dT%H%M%SZ).jsonl 2>&1
+    --output-format stream-json 2>&1 \
+    | tee transcripts/<NN>-<slug>__${ts}.jsonl
 ```
 
 ### History isolation
 
-`CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` (the wrapper sets it) keeps test runs out of:
+`CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` (set by the wrapper) keeps test runs out of:
 
 - `~/.claude/history.jsonl` — the global recent-prompts log you scan for insights/friction.
 - `~/.claude/projects/<encoded>/<session>.jsonl` — per-project session transcripts.
 
-Trade-off: with the flag set, Claude Code does not write a per-project transcript either. That's fine for `--capture` (we get our own JSONL). For interactive mode it means you observe live but no auto-recording — if you want a recording of an interactive run, do a `--capture` pass afterward, or screen-capture, or run twice (once each).
-
-Without the wrapper, raw `claude` invocations from `tests/` will record prompts under `~/.claude/history.jsonl` with `project` set to the tests cwd — easy to `jq`-filter when scanning, but they're there.
+There's no env var that redirects only history while keeping plugins/settings in `~/.claude/`. Skip-and-capture-locally is the cleanest compromise.
 
 ## What success looks like
 

@@ -1,30 +1,28 @@
 #!/usr/bin/env bash
 # tests/run-prompt.sh
 #
-# Run a prompt under prompts/ in a Claude Code session, with test-isolation
-# defaults baked in:
+# Run a prompt under prompts/ as a non-interactive Claude Code session,
+# streaming output live to your terminal AND saving a transcript locally.
 #
-#   - CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 keeps the prompt out of the global
+# Defaults bake in test isolation:
+#   - CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 keeps the run out of
 #     ~/.claude/history.jsonl and the per-project transcript dir.
-#   - In non-interactive mode, the full transcript (including tool use) is
-#     captured locally to transcripts/<NN>-<slug>__<ISO-time>.jsonl.
-#   - In interactive mode, you observe the session live; transcripts can
-#     still be saved by passing --capture (uses claude -p in the background
-#     after, which doesn't apply here — see notes).
+#   - Transcript saved to transcripts/<NN>-<slug>__<UTC>.txt (gitignored).
 #
 # Usage:
-#   ./run-prompt.sh <NN-slug>                        # interactive, isolated
-#   ./run-prompt.sh <NN-slug> --capture              # non-interactive, archived
-#   ./run-prompt.sh 04-debug-delete-button --capture
+#   ./run-prompt.sh <NN-slug>            # text output (default)
+#   ./run-prompt.sh <NN-slug> --json     # full stream-json (tool-use detail)
+#   ./run-prompt.sh 04-debug-delete-button
+#
+# Examples:
+#   ./run-prompt.sh 04-debug-delete-button
+#   ./run-prompt.sh 04-debug-delete-button --json | tail -f
 #
 # Notes:
-#   - Run from inside `tests/` (this script's directory). The script is a thin
-#     wrapper, NOT a substitute for the tests/CLAUDE.md project context — the
-#     session still needs to find that file at cwd, which it will.
-#   - Interactive mode does NOT auto-archive a transcript because Claude Code's
-#     skip-history flag suppresses the per-project transcript too. If you want
-#     a recording of an interactive session, run it twice (once interactive to
-#     observe, once with --capture to archive).
+#   - Run from inside `tests/`. The session inherits this cwd, so it picks up
+#     tests/CLAUDE.md and writes its <NN>-<slug>/ output dir there.
+#   - Text mode shows the model's prose response as it streams; --json mode
+#     shows every tool use, partial message, and result event for grading.
 
 set -euo pipefail
 
@@ -39,9 +37,12 @@ fi
 
 PROMPT_NAME="$1"
 shift
-CAPTURE=0
-if [[ "${1:-}" == "--capture" ]]; then
-  CAPTURE=1
+
+FORMAT="text"
+EXT="txt"
+if [[ "${1:-}" == "--json" ]]; then
+  FORMAT="stream-json"
+  EXT="jsonl"
   shift
 fi
 
@@ -55,25 +56,30 @@ if [[ ! -f "${PROMPT_FILE}" ]]; then
   exit 1
 fi
 
-# We always run from inside tests/ so the session picks up tests/CLAUDE.md.
 cd "${SCRIPT_DIR}"
+mkdir -p transcripts
+ts="$(date -u +%Y%m%dT%H%M%SZ)"
+out="transcripts/${PROMPT_NAME}__${ts}.${EXT}"
 
-# Quarantine env: keeps the prompt and the resulting per-project transcript
-# out of ~/.claude/.
+# Echo the prompt up front so the transcript is self-contained and you can
+# see exactly what was sent — both in the file and on your terminal.
+{
+  printf '=== PROMPT (%s) ===\n' "${PROMPT_NAME}"
+  cat "${PROMPT_FILE}"
+  printf '\n=== CLAUDE (%s, %s, model auto-selected) ===\n' "${FORMAT}" "${ts}"
+} | tee "${out}"
+
 export CLAUDE_CODE_SKIP_PROMPT_HISTORY=1
 
-if [[ ${CAPTURE} -eq 1 ]]; then
-  mkdir -p transcripts
-  ts="$(date -u +%Y%m%dT%H%M%SZ)"
-  out="transcripts/${PROMPT_NAME}__${ts}.jsonl"
-  printf '· running prompt non-interactively, transcript → %s\n' "${out}" >&2
-  # stream-json captures every tool use, every model turn — useful for
-  # iteration grading later.
-  claude -p "$(cat "${PROMPT_FILE}")" --output-format stream-json > "${out}" 2>&1
-  printf '· done. transcript saved to %s\n' "${out}" >&2
+# claude -p streams output as it generates. tee duplicates to the transcript
+# file while showing it live. 2>&1 captures any stderr (errors, warnings) so
+# the saved transcript reflects exactly what you saw.
+if [[ "${FORMAT}" == "stream-json" ]]; then
+  claude -p "$(cat "${PROMPT_FILE}")" --output-format stream-json 2>&1 \
+    | tee -a "${out}"
 else
-  printf '· starting interactive session in %s\n' "${SCRIPT_DIR}" >&2
-  printf '· paste the contents of %s as your first message\n' "${PROMPT_FILE}" >&2
-  printf '· (CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 — nothing recorded to ~/.claude)\n' >&2
-  claude
+  claude -p "$(cat "${PROMPT_FILE}")" 2>&1 \
+    | tee -a "${out}"
 fi
+
+printf '\n· transcript saved to %s\n' "${out}" >&2
