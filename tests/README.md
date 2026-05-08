@@ -19,24 +19,25 @@ See [CLAUDE.md](CLAUDE.md) for the test-session contract (what the session is al
 
 ## Running a test
 
-The wrapper `tests/run-prompt.sh` runs a prompt non-interactively via `claude -p`, streams the output live to your terminal, and saves a transcript locally:
+Single Python entry point — `tests/run-prompt.py`. Runs the prompt non-interactively via `claude -p`, streams output live, saves a transcript:
 
 ```bash
 cd <repo-root>/tests   # or the worktree's tests/ while iterating
 
 # Default: text output, streamed to terminal AND saved to transcripts/<NN>-<slug>__<UTC>.txt
-./run-prompt.sh 04-debug-delete-button
+./run-prompt.py 04-debug-delete-button
 
-# Full stream-json (every tool use, every partial message — useful for grading):
-./run-prompt.sh 04-debug-delete-button --json
-# saved to transcripts/04-debug-delete-button__<UTC>.jsonl
+# Stream-json with live pretty-printing (thinking blocks, tool uses, results):
+./run-prompt.py 04-debug-delete-button --json
+# raw JSONL saved to transcripts/04-debug-delete-button__<UTC>.jsonl
 ```
 
-The wrapper:
+What it does:
 
 - Echoes the prompt up front so the transcript is self-contained.
 - Sets `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` so the run doesn't pollute `~/.claude/history.jsonl` or the per-project transcript dir.
-- Tees `claude -p`'s stream output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored, so you only commit transcripts intentionally (e.g., as evidence of a memorable failure).
+- Streams `claude -p`'s output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored, so you only commit transcripts intentionally (e.g. as evidence of a memorable failure).
+- In `--json` mode, pretty-prints events to the terminal (assistant prose streams inline, thinking blocks shown wrapped under 💭, tool uses as 🔧 [name], tool results as ←, system hook noise suppressed) while writing the *raw* JSONL stream to disk for later grading.
 
 Output paths in the prompts are **relative to your cwd (`tests/`)**. A prompt that says `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` on disk.
 
@@ -51,13 +52,16 @@ After the run:
 ```bash
 cd <repo-root>/tests
 ts=$(date -u +%Y%m%dT%H%M%SZ)
+# text mode:
 CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude -p "$(cat prompts/<NN>-<slug>.md)" 2>&1 \
     | tee transcripts/<NN>-<slug>__${ts}.txt
-# or with full stream-json:
+# stream-json (raw JSONL, no pretty-printing):
 CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude -p "$(cat prompts/<NN>-<slug>.md)" \
-    --output-format stream-json 2>&1 \
+    --output-format stream-json --verbose 2>&1 \
     | tee transcripts/<NN>-<slug>__${ts}.jsonl
 ```
+
+The wrapper is just a thin orchestration layer over the above plus the JSON pretty-printer; if you want to inspect or modify the live view, edit `run-prompt.py`.
 
 ### History isolation
 
