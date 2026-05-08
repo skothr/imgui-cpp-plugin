@@ -6,17 +6,18 @@ This document captures what each prompt is actually testing — the conventions 
 
 If a prompt body and this intent doc disagree (the prompt mentions an idiom by name), the prompt is too leaky and should be tightened.
 
-## Style — diagnostic prompts are symptoms-first
+## Style — diagnostic prompts include code, but it's not surgical
 
-For "broken code, fix it" prompts (04, 05, 06): **the prompt body must NOT include the broken code.** A real user mid-debug describes the symptom and what they've already tried, not a surgically minimal reproducer. Pasting the code hands the answer to the skill — the skill then just needs to spot the bug in 6 lines, which is a much easier task than what we actually need to evaluate (does the skill reconstruct the likely bad pattern from the symptom alone?).
+For "broken code, fix it" prompts (04, 05, 06): the prompt body **does** include the broken code, because a test session opened in `tests/` has no existing C++ project to grep — the skill needs something concrete to read. But the included code should NOT be a 6-line surgical reproducer with the bug staring at you. Real users paste a real method or block, embedded in plausible surrounding code (style overrides, conditional highlighting, sibling submission, etc.), and the skill has to find the relevant pattern within it.
 
-The diagnostic-prompt rubric is therefore harder:
+The diagnostic-prompt rubric:
 
-1. **Symptom interpretation** — does the skill correctly map a symptom ("buttons all delete tab[0]" / "child panel grows 1px per frame" / "popup flashes for one frame") to the canonical bug pattern that produces it?
-2. **Pattern reconstruction** — does the skill describe the likely bad code structure ("you're probably calling `ImGui::Button(\"Delete\")` inside a loop without `PushID`") instead of asking the user to paste their code?
-3. **Fix demonstration** — does the skill show corrected code matching the reconstructed pattern, even though the user didn't paste theirs?
+1. **Symptom interpretation** — given the symptom ("buttons all delete tab[0]" / "child panel grows 1px per frame" / "popup flashes for one frame"), does the skill recognize which canonical bug family it belongs to?
+2. **Bug localization in real-ish code** — does the skill identify the specific lines in the pasted block that produce the symptom, ignoring the distractor code around them?
+3. **Fix demonstration** — does the skill produce a corrected code block applying the skill's conventions (RAII guards, idiomatic ID/popup/sizing patterns), not just minimal surgery?
+4. **Why-before-how** — does the skill explain the root mechanism before recommending the fix, especially for the layout/sizing case (05) where multiple plausible-but-wrong mental models exist?
 
-A skill that says "please paste your code" on a diagnostic prompt is a partial pass at best — real users get faster help when the skill recognizes the symptom and reconstructs.
+A pass requires all four. A "spot the line that's wrong + here's the fix" without explaining the mechanism is a partial pass.
 
 ## Cross-prompt expectations (apply to all prompts)
 
