@@ -1,30 +1,50 @@
 # Widget recipes
 
 > **Load this file when:** building day-to-day UI — drag-and-drop, color pickers, tooltips, selectable lists, comboboxes (with virtualization), text input with `std::string`, plotting helpers, tree views, disabled blocks, keyboard-focus management. For more exotic / fully-custom widgets see [custom-widgets.md](custom-widgets.md).
+>
+> **This file is a recipe catalog.** Each section below is a self-contained recipe; you almost never need to load the whole file. Use the symptom-to-recipe table below the Quick navigation to find the one section relevant to your task, then load just that range with `Read offset=N limit=M`.
 
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  28-52   1. Drag and drop
-> - L  53-78   2. Color pickers
-> - L  79-106  3. Tooltips
-> - L 107-129  4. Selectable list with stable IDs
-> - L 130-151  5. Combo with virtualization
-> - L 152-182  6. `InputText` with `std::string`
-> - L 183-199  7. Plotting (`PlotLines`, `PlotHistogram`)
-> - L 200-220  8. Tree view
-> - L 221-234  9. Disabled blocks
-> - L 235-257  10. Keyboard focus
-> - L 258-270  11. `InputTextMultiline`
-> - L 271-284  12. Progress bar
-> - L 285-292  13. File dialogs — explicit non-recipe
-> - L 293-323  14. End-to-end: drag-drop reordering of a list
-> - L 324-328  See also
+> - L  27-46   Find your recipe by symptom
+> - L  47-71   1. Drag and drop
+> - L  72-97   2. Color pickers
+> - L  98-125  3. Tooltips
+> - L 126-148  4. Selectable list with stable IDs
+> - L 149-170  5. Combo with virtualization
+> - L 171-201  6. `InputText` with `std::string`
+> - L 202-218  7. Plotting (`PlotLines`, `PlotHistogram`)
+> - L 219-239  8. Tree view
+> - L 240-253  9. Disabled blocks
+> - L 254-276  10. Keyboard focus
+> - L 277-289  11. `InputTextMultiline`
+> - L 290-303  12. Progress bar
+> - L 304-311  13. File dialogs — explicit non-recipe
+> - L 312-342  14. End-to-end: drag-drop reordering of a list
+> - L 343-347  See also
 <!-- QUICK_NAV_END -->
 
 
+## Find your recipe by symptom
 
-These are the recipes that come up every week. Each one is a stock widget: short, idiomatic, RAII-guarded, with the gotcha that bites people most often called out. When in doubt, the demo (`imgui_demo.cpp`) is the authoritative reference — line ranges below point at the section that originally inspired each recipe.
+| User says or implies… | Recipe |
+|---|---|
+| "drag and drop", "drag to reorder", "drop X on Y" | §1 drag-drop basics; §14 end-to-end reorder |
+| "color picker", "swatch button", "hex / HSV input" | §2 |
+| "tooltip", "hover hint", "show details on hover" | §3 |
+| "list with one selected row", "highlight current item", "scrolling selectable list" | §4 |
+| "combo with thousands of entries", "virtualized dropdown" | §5 |
+| "InputText with std::string", "resizable text field" | §6 |
+| "sparkline", "frame-time graph", "small inline histogram" | §7 |
+| "tree view", "collapsible nested list", "TreeNode state resetting" | §8 |
+| "disable a widget", "grey out a button", "non-interactive while loading" | §9 |
+| "auto-focus search box on open", "set focus to next field", "keyboard focus" | §10 |
+| "multi-line text input", "scratch-pad / code-editor field" | §11 |
+| "progress bar", "loading bar", "indeterminate spinner" | §12 |
+| "file dialog", "open / save picker" | §13 (intentional non-recipe) |
+
+These are the recipes that come up every week. Each one is a stock widget: short, idiomatic, RAII-guarded, with the gotcha that bites people most often called out. When in doubt, the demo (`imgui_demo.cpp`) is the authoritative reference — line ranges in each recipe point at the section that originally inspired it.
 
 ## 1. Drag and drop
 
