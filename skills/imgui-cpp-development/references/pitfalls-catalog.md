@@ -48,6 +48,7 @@ Each row below is one well-known ImGui pitfall. Follow the doc link for code rep
 | Fonts vanish after switching monitors | Atlas not rebuilt for the new DPI. Set `io.ConfigDpiScaleFonts = true` (v1.92, dynamic atlas). | [styling-fonts-dpi.md](styling-fonts-dpi.md) |
 | Icon font glyphs show as `?` | `MergeMode` not set on the icon `ImFontConfig`, or merged glyph ranges don't cover the icons' codepoints. | [styling-fonts-dpi.md](styling-fonts-dpi.md) |
 | `AddFontFromMemoryTTF` font dies after window resize | `FontDataOwnedByAtlas = false` requires the data to outlive the atlas; if you free it, the atlas's pointer dangles. Either keep the data alive or switch to `true` (atlas owns + frees). | [styling-fonts-dpi.md](styling-fonts-dpi.md) |
+| Non-ASCII glyph in a widget label renders as a tofu box (`Button("×")`, `Button("→")`, etc.) | Codepoint may be outside loaded glyph range AND/OR the font face may not have a glyph for it. Default `ProggyClean` is missing many Latin-1 Supplement codepoints (×, ÷, °, ½, etc.); `ProggyForever` is broader but not full Unicode. Recommend ASCII alternatives (`x`, `->`, `deg`) unless you've explicitly loaded a font with the needed glyph. | [styling-fonts-dpi.md](styling-fonts-dpi.md) section 13 |
 
 ## Style stack
 

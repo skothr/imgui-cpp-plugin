@@ -64,7 +64,7 @@ ImGui::Begin(buf);
 
 ## Common collision patterns (with `ImScoped::ID` fixes)
 
-**1. Same label in a loop — the "all my buttons do the same thing" bug.** From `FAQ.md:283-307`, this is the most common ID mistake in real codebases:
+**1. Same label in a loop — the "all my buttons do the same thing" bug.** This is the most common ID mistake in real codebases. The canonical FAQ entry is at `FAQ.md:309-341` (`Q: How can I have multiple widgets with the same label?`); broader ID-stack context is in the preceding Q at `FAQ.md:266-307` (`Q: About the ID Stack system...`):
 
 ```cpp
 // Wrong — all three widgets hash to the same ID:
@@ -94,7 +94,7 @@ if (auto w = ImScoped::Window("Correct")) {
 
 ## Begin/End scoping rule for IDs
 
-The ID stack is per-window. `Begin("X")` resets the working stack to `[hash("X")]` for the duration of the block; `End` pops back to whatever the previous window's stack was. `PushID` and `PopID` must balance *within* the same window scope. Calling `PopID` more times than `PushID` triggers an assert (`imgui.cpp:9897-9902`):
+The ID stack is per-window. `Begin("X")` resets the working stack to `[hash("X")]` for the duration of the block; `End` pops back to whatever the previous window's stack was. `PushID` and `PopID` must balance *within* the same window scope. Calling `PopID` more times than `PushID` triggers an assert (`imgui.cpp:9901-9907`):
 
 ```cpp
 void ImGui::PopID()
