@@ -1,28 +1,67 @@
 # Custom widgets, DrawList, hit-testing
 
 > **Load this file when:** authoring a non-standard widget — anything that needs the internal item-protocol (item registration, hit-testing, focus, keyboard nav) or low-level DrawList primitives (custom rendering inside or outside any window).
+>
+> **Shape:** TLDR with the canonical 6-step item-protocol skeleton at the top, followed by per-API surfaces (`IsItem*` queries, keyboard nav, DrawList lists, primitives, paths, clipping, channels, textures), then pitfalls. Most authoring questions need only the TLDR plus one API surface.
 
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  26-62   The item protocol — what every custom widget must do
-> - L  63-111  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
-> - L 112-129  The `IsItem*` query family
-> - L 130-135  Keyboard nav opt-in
-> - L 136-145  DrawList — three lists, three layers
-> - L 146-169  DrawList primitives (terse table)
-> - L 170-187  The Path API (imgui.h:3495-3506)
-> - L 188-200  `PushClipRect` / `PopClipRect` — two functions, two semantics
-> - L 201-216  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
-> - L 217-220  Custom-rendering demo
-> - L 221-232  `ImTextureID` type mismatches
-> - L 233-244  Common pitfalls (each with reproducer + fix)
-> - L 245-249  See also
+> - L  31-63   TLDR — minimal correct custom widget
+> - L  64-100  The item protocol — what every custom widget must do
+> - L 101-149  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
+> - L 150-167  The `IsItem*` query family
+> - L 168-173  Keyboard nav opt-in
+> - L 174-183  DrawList — three lists, three layers
+> - L 184-207  DrawList primitives (terse table)
+> - L 208-225  The Path API (imgui.h:3495-3506)
+> - L 226-238  `PushClipRect` / `PopClipRect` — two functions, two semantics
+> - L 239-254  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
+> - L 255-258  Custom-rendering demo
+> - L 259-270  `ImTextureID` type mismatches
+> - L 271-282  Common pitfalls (each with reproducer + fix)
+> - L 283-287  See also
 <!-- QUICK_NAV_END -->
 
 
 
+
+
+
 Dear ImGui's stock widgets all sit on top of three internal-API calls (`ItemSize`, `ItemAdd`, `ButtonBehavior`) plus an `ImDrawList`. If you skip any of them, the parts you skipped silently break: a missing `ItemSize` means the next widget overlaps yours, a missing `ItemAdd` means hit-testing and keyboard nav don't see your item at all, and rendering before `ItemAdd` bypasses clipping. Read this file before adding the seventh helper that "almost works."
+
+## TLDR — minimal correct custom widget
+
+Every conformant widget follows this 6-step skeleton (the worked walk-through of `ButtonEx` below shows the same pattern with rendering filled in):
+
+```cpp
+bool MyWidget(const char* label, ImVec2 size_arg /* ... */) {
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return false;                              // 1. Window collapsed -> bail.
+
+    const ImGuiID id = window->GetID(label);                          // 2. Hash label vs ID stack.
+    const ImVec2 pos  = window->DC.CursorPos;
+    const ImVec2 size = ImGui::CalcItemSize(size_arg, /* default w/h */ 100.0f, 24.0f);
+    const ImRect bb(pos, pos + size);
+
+    ImGui::ItemSize(size);                                            // 3. Reserve layout space.
+    if (!ImGui::ItemAdd(bb, id)) return false;                        // 4. Register; bail if clipped.
+
+    bool hovered, held;
+    bool pressed = ImGui::ButtonBehavior(bb, id, &hovered, &held);    // 5. Drive interaction.
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();                      // 6. Render last.
+    dl->AddRectFilled(bb.Min, bb.Max,
+                      ImGui::GetColorU32(held ? ImGuiCol_ButtonActive
+                                       : hovered ? ImGuiCol_ButtonHovered
+                                                 : ImGuiCol_Button));
+    return pressed;
+}
+```
+
+Why each step: `SkipItems` skips submission inside collapsed/clipped windows; `GetID` hashes the label so two of these in the same loop don't collide (or wrap the call site in `ImScoped::ID`); `ItemSize` advances the layout cursor for *every* widget including clipped ones, so the cursor stays consistent; `ItemAdd` is the gate that registers with hit-testing, keyboard nav, and clipping — when it returns false you must skip rendering and state queries; `ButtonBehavior` consumes mouse state and writes back to `g.LastItemData`; rendering goes last so it can read the freshly-computed interaction state. Custom widgets that follow this skeleton are indistinguishable from stock widgets to the rest of ImGui.
+
+When the widget needs `IsItemHovered`/`IsItemActive`-style queries, additional API surfaces (`IsItem*` family, keyboard-nav opt-in, DrawList layers, path API, clipping, channels), or specific drawing primitives, jump to the relevant section below.
 
 ## The item protocol — what every custom widget must do
 

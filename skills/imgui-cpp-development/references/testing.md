@@ -3,19 +3,22 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  23-30   What this engine does (and what it doesn't)
-> - L  31-51   Two run modes
-> - L  52-69   Anatomy of a test
-> - L  70-102  Registration
-> - L 103-131  The test API surface
-> - L 132-147  Named references — the path syntax
-> - L 148-188  Initialization recipe
-> - L 189-208  Headless run
-> - L 209-236  Common patterns
-> - L 237-245  Limitations and pitfalls
-> - L 246-251  Recommended workflow
-> - L 252-256  See also
+> - L  26-33   What this engine does (and what it doesn't)
+> - L  34-54   Two run modes
+> - L  55-72   Anatomy of a test
+> - L  73-105  Registration
+> - L 106-134  The test API surface
+> - L 135-150  Named references — the path syntax
+> - L 151-191  Initialization recipe
+> - L 192-211  Headless run
+> - L 212-239  Common patterns
+> - L 240-248  Limitations and pitfalls
+> - L 249-254  Recommended workflow
+> - L 255-259  See also
 <!-- QUICK_NAV_END -->
+
+
+
 
 
 

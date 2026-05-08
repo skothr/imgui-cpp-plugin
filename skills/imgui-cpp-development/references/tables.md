@@ -1,30 +1,85 @@
 # Tables
 
 > **Load this file when:** building a data grid — sortable columns, frozen rows/columns, multi-column selectable rows, virtualized large datasets via `ImGuiListClipper`, or per-cell background colors. The `BeginTable` API is rich and pitfall-heavy; reach for it instead of nested `Columns()`.
+>
+> **Shape:** TLDR with the canonical sortable+scrollable+virtualized recipe at the top, followed by per-API surfaces (setup, rows, sorting, selection, virtualization, cell colors), then pitfalls and the call-flow recap. For a single-section answer, jump via the Quick navigation below.
 
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  28-51   BeginTable signature and the conditional-end rule
-> - L  52-77   The "Tables" section index in imgui_tables.cpp
-> - L  78-100  Column setup
-> - L 101-113  Per-row submission
-> - L 114-125  Width policies
-> - L 126-143  Table-level sizing flags
-> - L 144-174  Sorting
-> - L 175-192  Selection in tables
-> - L 193-211  ImGuiListClipper for big tables
-> - L 212-228  Per-cell background colors
-> - L 229-253  Common pitfalls
-> - L 254-272  Typical call-flow recap
-> - L 273-276  Demo as the canonical reference
-> - L 277-309  Idiomatic recipe — sortable, scrollable data grid
-> - L 310-314  See also
+> - L  33-69   TLDR — canonical sortable, scrollable, virtualized grid
+> - L  70-81   Find your task
+> - L  82-105  BeginTable signature and the conditional-end rule
+> - L 106-131  The "Tables" section index in imgui_tables.cpp
+> - L 132-154  Column setup
+> - L 155-167  Per-row submission
+> - L 168-179  Width policies
+> - L 180-197  Table-level sizing flags
+> - L 198-228  Sorting
+> - L 229-246  Selection in tables
+> - L 247-265  ImGuiListClipper for big tables
+> - L 266-282  Per-cell background colors
+> - L 283-307  Common pitfalls
+> - L 308-326  Typical call-flow recap
+> - L 327-330  Demo as the canonical reference
+> - L 331-335  See also
 <!-- QUICK_NAV_END -->
 
 
 
+
+
+
 The Tables API replaces the legacy `Columns()` API for everything except the simplest two-column form. It's faster, supports sorting, freezing, scrolling, resizable/reorderable headers, and per-cell styling — but the call discipline is stricter than most ImGui APIs, and the most common bugs come from missing one of `EndTable`, the column-count contract, or the sort-spec lifetime.
+
+## TLDR — canonical sortable, scrollable, virtualized grid
+
+If "I want a sortable scrollable table of N items" matches the question, this is the answer. The rest of the file documents each knob the recipe uses.
+
+```cpp
+if (auto t = ImScoped::Table("##items", 3,
+        ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders,
+        ImVec2(-FLT_MIN, 400))) {
+    ImGui::TableSetupColumn("Name",     ImGuiTableColumnFlags_DefaultSort);
+    ImGui::TableSetupColumn("Size",     ImGuiTableColumnFlags_WidthFixed, 80.0f);
+    ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 140.0f);
+    ImGui::TableSetupScrollFreeze(0, 1);   // freeze header row during scroll
+    ImGui::TableHeadersRow();
+
+    if (auto* specs = ImGui::TableGetSortSpecs(); specs && specs->SpecsDirty) {
+        sort_items(items, *specs);
+        specs->SpecsDirty = false;
+    }
+
+    ImGuiListClipper clipper;
+    clipper.Begin((int)items.size());
+    while (clipper.Step()) {
+        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
+            auto& item = items[row];
+            ImScoped::ID id{&item};
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(item.name.c_str());
+            ImGui::TableNextColumn(); ImGui::Text("%lld", item.size);
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(item.mtime.c_str());
+        }
+    }
+}
+```
+
+Why each piece is there: `ImScoped::Table` makes `EndTable` impossible to forget on early returns; `TableSetupScrollFreeze(0, 1)` keeps the header row visible during scroll; `TableGetSortSpecs` is queried once per frame and dropped — never stored across frames; `ImGuiListClipper` skips off-screen rows so the loop scales to millions of items; `ImScoped::ID{&item}` keeps per-row state stable across reorder. For variations or to understand any individual piece, jump to the relevant section below.
+
+## Find your task
+
+| You want to… | Section |
+|---|---|
+| Set up columns and headers | Column setup |
+| Decide how columns share width | Width policies; Table-level sizing flags |
+| Make headers click-to-sort | Sorting |
+| Click rows like a list | Selection in tables |
+| Render thousands of rows | ImGuiListClipper for big tables |
+| Color a cell or row | Per-cell background colors |
+| Diagnose "EndTable assert" / "freeze does nothing" / "sort specs read garbage" | Common pitfalls |
 
 ## BeginTable signature and the conditional-end rule
 
@@ -274,39 +329,6 @@ The two ordering rules that matter at the top of this list: column setup and fre
 ## Demo as the canonical reference
 
 `imgui_demo.cpp` near line 5796 ("Tables & Columns") contains worked examples for every flag combination this reference describes — basic patterns, borders/backgrounds, resizable/stretch, sorting, frozen rows, clipper integration, multi-row selection, per-cell colors, and the angled headers variant. When a flag combination produces unexpected layout, finding the matching demo subsection and diffing against your code is faster than reading the source. Submit `ImGui::ShowDemoWindow()` once per frame to bring it up live.
-
-## Idiomatic recipe — sortable, scrollable data grid
-
-```cpp
-if (auto t = ImScoped::Table("##items", 3,
-        ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
-        ImGuiTableFlags_Resizable | ImGuiTableFlags_Borders,
-        ImVec2(-FLT_MIN, 400))) {
-    ImGui::TableSetupColumn("Name",     ImGuiTableColumnFlags_DefaultSort);
-    ImGui::TableSetupColumn("Size",     ImGuiTableColumnFlags_WidthFixed, 80.0f);
-    ImGui::TableSetupColumn("Modified", ImGuiTableColumnFlags_WidthFixed, 140.0f);
-    ImGui::TableSetupScrollFreeze(0, 1);
-    ImGui::TableHeadersRow();
-
-    if (auto* specs = ImGui::TableGetSortSpecs(); specs && specs->SpecsDirty) {
-        sort_items(items, *specs);
-        specs->SpecsDirty = false;
-    }
-
-    ImGuiListClipper clipper;
-    clipper.Begin((int)items.size());
-    while (clipper.Step()) {
-        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
-            auto& item = items[row];
-            ImScoped::ID id{&item};
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(item.name.c_str());
-            ImGui::TableNextColumn(); ImGui::Text("%lld", item.size);
-            ImGui::TableNextColumn(); ImGui::TextUnformatted(item.mtime.c_str());
-        }
-    }
-}
-```
 
 ## See also
 

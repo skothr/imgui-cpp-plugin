@@ -1,108 +1,32 @@
 # Layout and sizing
 
 > **Load this file when:** sizing or scrolling behaves unexpectedly — windows or child frames that won't shrink/grow as expected, "child window keeps growing one pixel each frame", scrollbar appearing or vanishing surprisingly, or any `SetNextWindow*` call seemingly being ignored.
+>
+> **Tier guidance:** Tier 1 covers the 80% case — diagnostics + canonical fixes for "child keeps growing", `BeginChild` sizing modes, why `SetNextWindowSize` is ignored, and the layout-query helpers. Tier 2 explains how sizing actually decides (the 3-input negotiation, ini state, `ImGuiCond`, scrollbars, style fields). Tier 3 is rare custom-constraint cases via `ImGuiSizeCallback`. Default load: Tier 1 only via the Quick navigation below.
 
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  23-49   How sizing actually decides
-> - L  50-62   Auto-fit on first frame, ini state thereafter
-> - L  63-72   Why your `SetNextWindowSize` is being ignored
-> - L  73-103  `BeginChild` sizing modes
-> - L 104-166  The canonical "child frame keeps growing every frame" pattern
-> - L 167-176  Scrollbar behavior in `BeginChild`
-> - L 177-200  Style fields that affect sizing
-> - L 201-220  Layout-query functions
-> - L 221-246  `ImGuiSizeCallback` for custom constraints
-> - L 247-251  See also
+> - L  16-80   1. The canonical "child frame keeps growing every frame" pattern
+> - L  81-113  2. `BeginChild` sizing modes (cheat sheet)
+> - L 114-127  3. Why your `SetNextWindowSize` is being ignored
+> - L 128-151  4. Layout-query functions
+> - L 152-180  5. How sizing actually decides
+> - L 181-195  6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
+> - L 196-207  7. Scrollbar behavior in `BeginChild`
+> - L 208-235  8. Style fields that affect sizing
+> - L 236-263  9. `ImGuiSizeCallback` for custom constraints
+> - L 264-268  See also
 <!-- QUICK_NAV_END -->
-
 
 
 This reference covers how Dear ImGui actually decides window and child sizes, why your `SetNextWindowSize` may be silently ignored, the canonical fix for the "child frame keeps growing" pattern, and the layout-query helpers you reach for when laying widgets out by hand. The deepest pitfalls cluster around two facts: sizing is a *negotiation* between code, the `.ini` file, and content; and `BeginChild` with `AutoResize` flags creates a feedback loop the moment content depends on size.
 
-## How sizing actually decides
+---
 
-A window's size on any given frame is the result of three inputs settled in this order:
+# Tier 1 — Quick answers
 
-1. **`.ini` saved state.** On startup, ImGui parses the imgui.ini file (or `io.IniFilename` location). If the user resized your window in a previous session, that size is loaded before any of your code runs.
-2. **Your `SetNextWindow*` calls,** consumed by `Begin()`. These override the ini state — but only if you used a `cond` that lets them (see below).
-3. **Auto-fit to content** if neither of the above pinned a size. First-frame auto-fit is also what populates the ini if the user never resizes manually.
-
-The order of operations within a single frame is:
-
-```
-SetNextWindowPos / Size / Constraints / Collapsed     // populate g.NextWindowData
-Begin("MyWindow")                                     // consume g.NextWindowData, resolve final pos/size
-... submit widgets ...
-End()
-```
-
-`SetNextWindow*` writes into `g.NextWindowData`; `Begin()` reads and clears it. That is the entire mechanism. Get the order wrong and your override applies to whichever `Begin()` *next* receives that state — almost certainly not the one you wanted.
-
-The header is explicit on this. From `imgui.h:483-487`:
-
-> `SetNextWindowPos(...)` — set next window position. **call before Begin()**.
-> `SetNextWindowSize(...)` — set next window size. **set axis to 0.0f to force an auto-fit on this axis. call before Begin()**.
-> `SetNextWindowSizeConstraints(...)` — set next window size limits. Use 0.0f or FLT_MAX if you don't want limits.
-
-There is no runtime assertion catching "called after Begin" — the call simply primes state for the next consumer. That makes it a silent bug, which is why it earns its own section below.
-
-## Auto-fit on first frame, ini state thereafter
-
-The first time your code calls `Begin("MyWindow")` and there is no `[Window][MyWindow]` block in imgui.ini, ImGui auto-fits the window to the content you submit during that frame. The resulting size is what gets saved to ini if/when settings persist. On every subsequent run, the ini block wins — until either you delete it, or the user resizes the window (which updates the ini), or your code passes `ImGuiCond_Always` to force the size each frame.
-
-The `ImGuiCond` enum (per `imgui.h:2076` and the comments around the `SetWindow*` family) gives you four common policies:
-
-- `ImGuiCond_Always` — apply every frame. The strongest override, useful for windows whose size is genuinely controlled by your code (a status bar pinned to the bottom, a fixed-size tool window).
-- `ImGuiCond_Once` — apply on the first call only, regardless of ini state. Rarely the right choice.
-- `ImGuiCond_FirstUseEver` — apply only if there is no saved ini state. Suggests "this is a sensible default; let the user customize." This is the right default for most application windows.
-- `ImGuiCond_Appearing` — apply each time the window transitions from hidden to shown. Useful for popups and modals you want to recenter on each open.
-
-The demo's "ShowExampleAppConstrainedResize" passes `ImGuiCond_FirstUseEver` for exactly that reason — it picks an initial size but defers to user resizing. Match that pattern unless you have a concrete reason not to.
-
-## Why your `SetNextWindowSize` is being ignored
-
-Three causes, in order of frequency:
-
-1. **The `.ini` has the size pinned and you used `ImGuiCond_FirstUseEver`.** This is the most common one. `FirstUseEver` only applies the first time the window is created with no ini entry. Once the user resizes manually (or you save a session), your code's value is shadowed forever. To force every frame, use `ImGuiCond_Always`. To restore the original behavior, delete the relevant `[Window][...]` block in imgui.ini.
-2. **Called after `Begin()`.** `g.NextWindowData` is consumed at the top of `Begin`, so calling `SetNextWindowSize` between `Begin` and `End` queues it for the *next* `Begin` call. Move the call up.
-3. **`ImGuiWindowFlags_AlwaysAutoResize` is set on the window.** From `imgui.h:1220` — "Resize every window to its content every frame." Explicit size becomes a one-frame visual flicker at most; auto-fit wins.
-
-If none of those apply, run Demo > Tools > ID Stack Tool to confirm you're addressing the same window you think you are (a duplicate `Begin("X")` somewhere else in the codebase is rarer but happens).
-
-## `BeginChild` sizing modes
-
-`BeginChild` signature, per `imgui.h:463`:
-
-```cpp
-bool BeginChild(const char* str_id,
-                const ImVec2& size = ImVec2(0, 0),
-                ImGuiChildFlags child_flags = 0,
-                ImGuiWindowFlags window_flags = 0);
-```
-
-The size vector encodes mode per-axis. From `imgui.h:452-455`:
-
-> Manual sizing (each axis can use a different setting e.g. `ImVec2(0.0f, 400.0f)`):
->  `== 0.0f`: use remaining parent window size for this axis.
->  `> 0.0f`: use specified size for this axis.
->  `< 0.0f`: right/bottom-align to specified distance from available content boundaries.
-
-So:
-
-- `ImVec2(0, 0)` — fill the parent's remaining space on both axes. This is the default and almost always what you want for the "main content" child of a window.
-- `ImVec2(W, H)` with both positive — fixed size in pixels. Most predictable. Content that overflows scrolls (or clips, depending on flags).
-- `ImVec2(-FLT_MIN, -FLT_MIN)` — fill *all* remaining space exactly, including any sub-pixel residual that `ImVec2(0, 0)` rounds away. Reach for this when you want a child to butt up against the parent edge with zero gap. Padding bugs at the bottom-right corner of your layout are usually a missing `-FLT_MIN`.
-- `ImVec2(0, 200)` (mixed) — auto-fill width, fixed height. Common for a fixed-height log pane atop a flexible-height editor.
-
-`ImGuiChildFlags_AutoResizeX` / `AutoResizeY` (from `imgui.h:1269-1270`) make the child measure its content along that axis instead of taking a parent-allocated size. This is useful for content-fit panels but creates a problem the upstream comment is blunt about (`imgui.h:457`):
-
-> Combining both `ImGuiChildFlags_AutoResizeX` *and* `ImGuiChildFlags_AutoResizeY` defeats purpose of a scrolling region and is **NOT recommended**.
-
-If both axes auto-resize, there's no axis along which content can overflow into a scrollbar — the child just grows. Combine that with content whose size depends on the child (wrapping text, item-per-line lists), and you get a feedback loop.
-
-## The canonical "child frame keeps growing every frame" pattern
+## 1. The canonical "child frame keeps growing every frame" pattern
 
 This is the user-flagged pain area. The reproducer:
 
@@ -165,7 +89,124 @@ if (auto c = ImScoped::Child("##log", ImVec2(-FLT_MIN, default_h),
 
 `ResizeY` (`imgui.h:1268`) lets the user drag the bottom border. The child still has a definite size each frame — it's just chosen by the user, not your code. Double-clicking the resize border restores auto-fit. Note that `ResizeX/ResizeY` enables ini saving for child sizes (per the same header comment), so the user's choice persists.
 
-## Scrollbar behavior in `BeginChild`
+---
+
+## 2. `BeginChild` sizing modes (cheat sheet)
+
+`BeginChild` signature, per `imgui.h:463`:
+
+```cpp
+bool BeginChild(const char* str_id,
+                const ImVec2& size = ImVec2(0, 0),
+                ImGuiChildFlags child_flags = 0,
+                ImGuiWindowFlags window_flags = 0);
+```
+
+The size vector encodes mode per-axis. From `imgui.h:452-455`:
+
+> Manual sizing (each axis can use a different setting e.g. `ImVec2(0.0f, 400.0f)`):
+>  `== 0.0f`: use remaining parent window size for this axis.
+>  `> 0.0f`: use specified size for this axis.
+>  `< 0.0f`: right/bottom-align to specified distance from available content boundaries.
+
+So:
+
+- `ImVec2(0, 0)` — fill the parent's remaining space on both axes. This is the default and almost always what you want for the "main content" child of a window.
+- `ImVec2(W, H)` with both positive — fixed size in pixels. Most predictable. Content that overflows scrolls (or clips, depending on flags).
+- `ImVec2(-FLT_MIN, -FLT_MIN)` — fill *all* remaining space exactly, including any sub-pixel residual that `ImVec2(0, 0)` rounds away. Reach for this when you want a child to butt up against the parent edge with zero gap. Padding bugs at the bottom-right corner of your layout are usually a missing `-FLT_MIN`.
+- `ImVec2(0, 200)` (mixed) — auto-fill width, fixed height. Common for a fixed-height log pane atop a flexible-height editor.
+
+`ImGuiChildFlags_AutoResizeX` / `AutoResizeY` (from `imgui.h:1269-1270`) make the child measure its content along that axis instead of taking a parent-allocated size. This is useful for content-fit panels but creates a problem the upstream comment is blunt about (`imgui.h:457`):
+
+> Combining both `ImGuiChildFlags_AutoResizeX` *and* `ImGuiChildFlags_AutoResizeY` defeats purpose of a scrolling region and is **NOT recommended**.
+
+If both axes auto-resize, there's no axis along which content can overflow into a scrollbar — the child just grows. Combine that with content whose size depends on the child (wrapping text, item-per-line lists), and you get the §1 feedback loop.
+
+---
+
+## 3. Why your `SetNextWindowSize` is being ignored
+
+Three causes, in order of frequency:
+
+1. **The `.ini` has the size pinned and you used `ImGuiCond_FirstUseEver`.** This is the most common one. `FirstUseEver` only applies the first time the window is created with no ini entry. Once the user resizes manually (or you save a session), your code's value is shadowed forever. To force every frame, use `ImGuiCond_Always`. To restore the original behavior, delete the relevant `[Window][...]` block in imgui.ini.
+2. **Called after `Begin()`.** `g.NextWindowData` is consumed at the top of `Begin`, so calling `SetNextWindowSize` between `Begin` and `End` queues it for the *next* `Begin` call. Move the call up.
+3. **`ImGuiWindowFlags_AlwaysAutoResize` is set on the window.** From `imgui.h:1220` — "Resize every window to its content every frame." Explicit size becomes a one-frame visual flicker at most; auto-fit wins.
+
+If none of those apply, run Demo > Tools > ID Stack Tool to confirm you're addressing the same window you think you are (a duplicate `Begin("X")` somewhere else in the codebase is rarer but happens).
+
+For the full ordering rules and `ImGuiCond` semantics, see Tier 2 §5.
+
+---
+
+## 4. Layout-query functions
+
+Reach for these to size widgets relative to the available area rather than hard-coding pixels:
+
+- **`GetContentRegionAvail()`** — available space from the cursor to the right/bottom edge of the content region. Already accounts for visible scrollbars. Use for "fill remaining width" patterns: `Button("Apply", ImVec2(GetContentRegionAvail().x, 0))`.
+- **`GetWindowSize()`** — full window size including title bar, borders, scrollbars. Less useful for widget layout — almost always you want `GetContentRegionAvail` instead.
+- **`GetCursorScreenPos()`** — current draw position in *screen coordinates*. Pair with `ImDrawList` calls (which take screen coords). Prefer this over the deprecated `GetCursorPos`/`GetWindowContentRegionMin` pair.
+- **`CalcTextSize(text, text_end, hide_text_after_double_hash, wrap_width)`** — measure rendered text in pixels. Useful for centering, right-aligning, or pre-allocating room for the longest of a set of strings.
+
+A common sizing recipe — make a `DragFloat` take exactly half the remaining width:
+
+```cpp
+{
+    ImScoped::ItemWidth iw{ImGui::GetContentRegionAvail().x * 0.5f};
+    ImGui::DragFloat("##value", &f);
+}
+```
+
+The legacy `GetWindowContentRegionMin` / `GetWindowContentRegionMax` pair is discouraged in current code — they return window-local coordinates and predate the cleaner `GetCursorScreenPos` + `GetContentRegionAvail` pair. The FAQ specifically recommends the latter.
+
+---
+
+# Tier 2 — Mechanism
+
+## 5. How sizing actually decides
+
+A window's size on any given frame is the result of three inputs settled in this order:
+
+1. **`.ini` saved state.** On startup, ImGui parses the imgui.ini file (or `io.IniFilename` location). If the user resized your window in a previous session, that size is loaded before any of your code runs.
+2. **Your `SetNextWindow*` calls,** consumed by `Begin()`. These override the ini state — but only if you used a `cond` that lets them (see below).
+3. **Auto-fit to content** if neither of the above pinned a size. First-frame auto-fit is also what populates the ini if the user never resizes manually.
+
+The order of operations within a single frame is:
+
+```
+SetNextWindowPos / Size / Constraints / Collapsed     // populate g.NextWindowData
+Begin("MyWindow")                                     // consume g.NextWindowData, resolve final pos/size
+... submit widgets ...
+End()
+```
+
+`SetNextWindow*` writes into `g.NextWindowData`; `Begin()` reads and clears it. That is the entire mechanism. Get the order wrong and your override applies to whichever `Begin()` *next* receives that state — almost certainly not the one you wanted.
+
+The header is explicit on this. From `imgui.h:483-487`:
+
+> `SetNextWindowPos(...)` — set next window position. **call before Begin()**.
+> `SetNextWindowSize(...)` — set next window size. **set axis to 0.0f to force an auto-fit on this axis. call before Begin()**.
+> `SetNextWindowSizeConstraints(...)` — set next window size limits. Use 0.0f or FLT_MAX if you don't want limits.
+
+There is no runtime assertion catching "called after Begin" — the call simply primes state for the next consumer. That makes it a silent bug, which is why it earns its own Tier 1 §3 entry.
+
+---
+
+## 6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
+
+The first time your code calls `Begin("MyWindow")` and there is no `[Window][MyWindow]` block in imgui.ini, ImGui auto-fits the window to the content you submit during that frame. The resulting size is what gets saved to ini if/when settings persist. On every subsequent run, the ini block wins — until either you delete it, or the user resizes the window (which updates the ini), or your code passes `ImGuiCond_Always` to force the size each frame.
+
+The `ImGuiCond` enum (per `imgui.h:2076` and the comments around the `SetWindow*` family) gives you four common policies:
+
+- `ImGuiCond_Always` — apply every frame. The strongest override, useful for windows whose size is genuinely controlled by your code (a status bar pinned to the bottom, a fixed-size tool window).
+- `ImGuiCond_Once` — apply on the first call only, regardless of ini state. Rarely the right choice.
+- `ImGuiCond_FirstUseEver` — apply only if there is no saved ini state. Suggests "this is a sensible default; let the user customize." This is the right default for most application windows.
+- `ImGuiCond_Appearing` — apply each time the window transitions from hidden to shown. Useful for popups and modals you want to recenter on each open.
+
+The demo's "ShowExampleAppConstrainedResize" passes `ImGuiCond_FirstUseEver` for exactly that reason — it picks an initial size but defers to user resizing. Match that pattern unless you have a concrete reason not to.
+
+---
+
+## 7. Scrollbar behavior in `BeginChild`
 
 Vertical scrolling activates automatically whenever content extends past the child's available height. Horizontal scrolling does *not* — it requires `ImGuiWindowFlags_HorizontalScrollbar` in the `window_flags` argument (the fourth parameter, not the third — that's `ImGuiChildFlags`). From `imgui.h:1225`:
 
@@ -175,7 +216,9 @@ Without that flag, content wider than the child is simply clipped on the right. 
 
 Do not enable `AutoResizeX` and `HorizontalScrollbar` on the same axis — there's nothing to scroll into when the child grows to fit content. Same warning for `AutoResizeY` plus vertical scrolling. Pick auto-resize *or* scroll, not both, per axis.
 
-## Style fields that affect sizing
+---
+
+## 8. Style fields that affect sizing
 
 The defaults in `ImGuiStyle::ImGuiStyle()` at `imgui.cpp:1488-1556`:
 
@@ -199,27 +242,11 @@ When laying widgets out by hand and the result is "almost right but two pixels o
 
 Note `WindowPadding` is consulted by `Begin` itself (line `imgui.cpp:8089`), so the push has to occur *before* `Begin`, not inside the window's body. The same goes for any style var that influences window decoration (`WindowRounding`, `WindowBorderSize`, `ScrollbarSize`).
 
-## Layout-query functions
+---
 
-Reach for these to size widgets relative to the available area rather than hard-coding pixels:
+# Tier 3 — Appendix
 
-- **`GetContentRegionAvail()`** — available space from the cursor to the right/bottom edge of the content region. Already accounts for visible scrollbars. Use for "fill remaining width" patterns: `Button("Apply", ImVec2(GetContentRegionAvail().x, 0))`.
-- **`GetWindowSize()`** — full window size including title bar, borders, scrollbars. Less useful for widget layout — almost always you want `GetContentRegionAvail` instead.
-- **`GetCursorScreenPos()`** — current draw position in *screen coordinates*. Pair with `ImDrawList` calls (which take screen coords). Prefer this over the deprecated `GetCursorPos`/`GetWindowContentRegionMin` pair.
-- **`CalcTextSize(text, text_end, hide_text_after_double_hash, wrap_width)`** — measure rendered text in pixels. Useful for centering, right-aligning, or pre-allocating room for the longest of a set of strings.
-
-A common sizing recipe — make a `DragFloat` take exactly half the remaining width:
-
-```cpp
-{
-    ImScoped::ItemWidth iw{ImGui::GetContentRegionAvail().x * 0.5f};
-    ImGui::DragFloat("##value", &f);
-}
-```
-
-The legacy `GetWindowContentRegionMin` / `GetWindowContentRegionMax` pair is discouraged in current code — they return window-local coordinates and predate the cleaner `GetCursorScreenPos` + `GetContentRegionAvail` pair. The FAQ specifically recommends the latter.
-
-## `ImGuiSizeCallback` for custom constraints
+## 9. `ImGuiSizeCallback` for custom constraints
 
 `SetNextWindowSizeConstraints` accepts a callback for non-trivial constraints — aspect-ratio-locked windows, snap-to-grid sizing, max-content-rows. Signature from `imgui.h:292`:
 
@@ -244,6 +271,8 @@ if (auto w = ImScoped::Window("Preview")) {
 ```
 
 Per `imgui.h:2784-2785` — "For basic min/max size constraint on each axis you don't need to use the callback! The `SetNextWindowSizeConstraints()` parameters are enough." Use the callback only when the constraint is computed.
+
+---
 
 ## See also
 

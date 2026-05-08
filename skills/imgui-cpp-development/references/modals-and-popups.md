@@ -5,17 +5,20 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  23-48   The popup lifecycle
-> - L  49-78   Why "OpenPopup every frame" is wrong
-> - L  79-102  Modal vs non-modal
-> - L 103-128  Closing
-> - L 129-159  Context-menu helpers
-> - L 160-165  Nesting popups
-> - L 166-189  ID scoping
-> - L 190-203  Common pitfalls
-> - L 204-228  Idiomatic recipe — confirmation modal
-> - L 229-233  See also
+> - L  26-51   The popup lifecycle
+> - L  52-81   Why "OpenPopup every frame" is wrong
+> - L  82-105  Modal vs non-modal
+> - L 106-131  Closing
+> - L 132-162  Context-menu helpers
+> - L 163-168  Nesting popups
+> - L 169-192  ID scoping
+> - L 193-206  Common pitfalls
+> - L 207-231  Idiomatic recipe — confirmation modal
+> - L 232-236  See also
 <!-- QUICK_NAV_END -->
+
+
+
 
 
 
