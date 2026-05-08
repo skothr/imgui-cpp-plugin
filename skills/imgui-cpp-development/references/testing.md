@@ -3,19 +3,20 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  22-29   What this engine does (and what it doesn't)
-> - L  30-50   Two run modes
-> - L  51-68   Anatomy of a test
-> - L  69-101  Registration
-> - L 102-130  The test API surface
-> - L 131-146  Named references — the path syntax
-> - L 147-187  Initialization recipe
-> - L 188-207  Headless run
-> - L 208-235  Common patterns
-> - L 236-244  Limitations and pitfalls
-> - L 245-250  Recommended workflow
-> - L 251-255  See also
+> - L  23-30   What this engine does (and what it doesn't)
+> - L  31-51   Two run modes
+> - L  52-69   Anatomy of a test
+> - L  70-102  Registration
+> - L 103-131  The test API surface
+> - L 132-147  Named references — the path syntax
+> - L 148-188  Initialization recipe
+> - L 189-208  Headless run
+> - L 209-236  Common patterns
+> - L 237-245  Limitations and pitfalls
+> - L 246-251  Recommended workflow
+> - L 252-256  See also
 <!-- QUICK_NAV_END -->
+
 
 
 # Testing ImGui apps with imgui_test_engine

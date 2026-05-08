@@ -5,22 +5,23 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  27-50   BeginTable signature and the conditional-end rule
-> - L  51-76   The "Tables" section index in imgui_tables.cpp
-> - L  77-99   Column setup
-> - L 100-112  Per-row submission
-> - L 113-124  Width policies
-> - L 125-142  Table-level sizing flags
-> - L 143-173  Sorting
-> - L 174-191  Selection in tables
-> - L 192-210  ImGuiListClipper for big tables
-> - L 211-227  Per-cell background colors
-> - L 228-252  Common pitfalls
-> - L 253-271  Typical call-flow recap
-> - L 272-275  Demo as the canonical reference
-> - L 276-308  Idiomatic recipe — sortable, scrollable data grid
-> - L 309-313  See also
+> - L  28-51   BeginTable signature and the conditional-end rule
+> - L  52-77   The "Tables" section index in imgui_tables.cpp
+> - L  78-100  Column setup
+> - L 101-113  Per-row submission
+> - L 114-125  Width policies
+> - L 126-143  Table-level sizing flags
+> - L 144-174  Sorting
+> - L 175-192  Selection in tables
+> - L 193-211  ImGuiListClipper for big tables
+> - L 212-228  Per-cell background colors
+> - L 229-253  Common pitfalls
+> - L 254-272  Typical call-flow recap
+> - L 273-276  Demo as the canonical reference
+> - L 277-309  Idiomatic recipe — sortable, scrollable data grid
+> - L 310-314  See also
 <!-- QUICK_NAV_END -->
+
 
 
 The Tables API replaces the legacy `Columns()` API for everything except the simplest two-column form. It's faster, supports sorting, freezing, scrolling, resizable/reorderable headers, and per-cell styling — but the call discipline is stricter than most ImGui APIs, and the most common bugs come from missing one of `EndTable`, the column-count contract, or the sort-spec lifetime.

@@ -5,22 +5,23 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  30-63   1. The style stack
-> - L  64-86   2. Built-in themes
-> - L  87-113  3. `ImGuiStyle` fields most users tune
-> - L 114-135  4. The live theme editor: `ShowStyleEditor()`
-> - L 136-153  5. Font atlas — overview
-> - L 154-174  6. The v1.92 font-system rework (the highest-impact change in this release)
-> - L 175-209  7. Loading custom fonts
-> - L 210-250  8. Merging an icon font
-> - L 251-271  9. Glyph ranges (legacy)
-> - L 272-290  10. `ImFontConfig` fields that matter
-> - L 291-340  11. DPI scaling — three knobs, one frequent confusion
-> - L 341-354  12. Multi-viewport DPI
-> - L 355-377  13. Non-ASCII characters in widget labels
-> - L 378-391  14. Common pitfalls
-> - L 392-396  See also
+> - L  32-65   1. The style stack
+> - L  66-88   2. Built-in themes
+> - L  89-115  3. `ImGuiStyle` fields most users tune
+> - L 116-137  4. The live theme editor: `ShowStyleEditor()`
+> - L 138-155  5. Font atlas — overview
+> - L 156-176  6. The v1.92 font-system rework (the highest-impact change in this release)
+> - L 177-211  7. Loading custom fonts
+> - L 212-252  8. Merging an icon font
+> - L 253-273  9. Glyph ranges (legacy)
+> - L 274-292  10. `ImFontConfig` fields that matter
+> - L 293-342  11. DPI scaling — three knobs, one frequent confusion
+> - L 343-356  12. Multi-viewport DPI
+> - L 357-379  13. Non-ASCII characters in widget labels
+> - L 380-393  14. Common pitfalls
+> - L 394-398  See also
 <!-- QUICK_NAV_END -->
+
 
 
 ImGui's style is a stack of named values pushed and popped per frame; fonts live in a single atlas the renderer uploads as a texture; DPI is handled via three orthogonal knobs that are easy to confuse. **v1.92 reworked the font system** — fonts are now dynamically sized, glyph ranges are auto-loaded on demand, and the atlas is rebuilt by the backend rather than the application. Older guidance from the web is often stale: if a tutorial passes glyph ranges to `AddFontFromFileTTF()` or treats `PushFont(font)` as a one-arg call, it predates v1.92.

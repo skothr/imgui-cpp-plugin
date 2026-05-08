@@ -54,7 +54,7 @@ The references are designed for **independent loading** — load exactly the one
 | Setting up a new ImGui project (build, main loop) | [references/bootstrap.md](references/bootstrap.md) |
 | Detecting / installing / pinning ImGui in a project | [references/locate-imgui.md](references/locate-imgui.md) |
 | The per-frame lifecycle (NewFrame / Render / multi-viewport) | [references/frame-loop.md](references/frame-loop.md) |
-| ID stack rules, collisions, debugging | [references/id-stack.md](references/id-stack.md) |
+| ID stack rules, collisions, debugging | [references/id-stack.md](references/id-stack.md) — most queries need only Tier 1 (`Read offset=1 limit=38`) |
 | Window / Child sizing, scroll behavior, child-frame growth bugs | [references/layout-and-sizing.md](references/layout-and-sizing.md) |
 | Style stack, fonts, font atlas, DPI | [references/styling-fonts-dpi.md](references/styling-fonts-dpi.md) |
 | Docking layouts, multi-viewport | [references/docking-and-viewports.md](references/docking-and-viewports.md) |
@@ -70,13 +70,18 @@ The references are designed for **independent loading** — load exactly the one
 
 Other backends (Vulkan, DX11, DX12, Metal, WebGPU, SDL3 platform) and other build systems (Meson, Bazel, Premake, raw Makefiles) are tracked as feature requests — not yet first-class in this skill. If the user asks about one of those, say so explicitly and fall back to general guidance + a pointer to the upstream backend file.
 
-**Read references partially when you can.** Each reference longer than ~200 lines opens with a `Quick navigation` block listing every `## section` and its line range. If the user's question maps to a single section, prefer `Read offset=<L> limit=<N>` over loading the whole file — it keeps context lean and lets you compose multiple references without burning the budget. Examples:
+**Read references partially when you can.** Two navigation aids:
 
-- "all my buttons do the same thing" → `id-stack.md` is small enough to read whole
-- "child window grows every frame" → `layout-and-sizing.md`, sections "BeginChild sizing modes" and "The canonical ... pattern" — partial read is fine
-- "× glyph isn't rendering" → `styling-fonts-dpi.md` section 13 (Non-ASCII characters in widget labels) — partial read is the right move
+1. **Tier guidance** at the top of refactored docs (currently `id-stack.md`). Tier 1 = quick answer (~30-40 lines), Tier 2 = mechanism + catalog, Tier 3 = appendix. Most queries only need Tier 1; load Tier 2-3 when the question is "why" / "what else can collide" / version-specific.
+2. **Quick navigation** block in every reference longer than ~200 lines, listing every `## section` and its line range. If the user's question maps to a single section, `Read offset=<L> limit=<N>` keeps context lean.
 
-When you load a reference whole, that's a deliberate signal that you expect to consult multiple sections. When you load partially, the routing decision was a single section.
+Examples:
+
+- "all my buttons do the same thing" → `id-stack.md` Tier 1 only (`Read offset=1 limit=38`); load Tier 2 only if the user pushes for mechanism or has a non-loop variant.
+- "child window grows every frame" → `layout-and-sizing.md`, sections "BeginChild sizing modes" and "The canonical ... pattern" — partial read.
+- "x glyph isn't rendering" → `styling-fonts-dpi.md` section 13 (Non-ASCII characters in widget labels) — partial read.
+
+Loading a reference whole is a deliberate signal that you expect to consult multiple sections. Default to partial.
 
 ## LSP-driven navigation of ImGui's source
 

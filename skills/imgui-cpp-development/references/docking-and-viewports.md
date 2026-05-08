@@ -5,17 +5,18 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  22-36   The two ConfigFlags — independent, not paired
-> - L  37-86   DockSpace and DockSpaceOverViewport
-> - L  87-115  DockBuilder — programmatic layout, with a stability caveat
-> - L 116-125  Programmatic queries: SetNextWindowDockID, GetWindowDockID, IsWindowDocked
-> - L 126-152  ImGuiWindowClass — class-scoped docking
-> - L 153-166  .ini persistence — automatic, with manual hooks
-> - L 167-192  Multi-viewport setup
-> - L 193-204  Per-viewport state
-> - L 205-222  Common pitfalls
-> - L 223-227  See also
+> - L  23-37   The two ConfigFlags — independent, not paired
+> - L  38-87   DockSpace and DockSpaceOverViewport
+> - L  88-116  DockBuilder — programmatic layout, with a stability caveat
+> - L 117-126  Programmatic queries: SetNextWindowDockID, GetWindowDockID, IsWindowDocked
+> - L 127-153  ImGuiWindowClass — class-scoped docking
+> - L 154-167  .ini persistence — automatic, with manual hooks
+> - L 168-193  Multi-viewport setup
+> - L 194-205  Per-viewport state
+> - L 206-223  Common pitfalls
+> - L 224-228  See also
 <!-- QUICK_NAV_END -->
+
 
 
 The two features ship together but solve different problems. Docking lets ImGui windows merge into a tabbed/split layout inside a single host window. Multi-viewport lets ImGui detach a window into its own OS-level window so the user can drag it onto a second monitor. Real apps usually want both, but you can enable them independently — and most "nothing works" reports turn out to be a missing config flag or a missing backend flag, not a real bug.

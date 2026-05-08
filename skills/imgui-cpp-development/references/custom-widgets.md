@@ -5,20 +5,21 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  25-61   The item protocol — what every custom widget must do
-> - L  62-110  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
-> - L 111-128  The `IsItem*` query family
-> - L 129-134  Keyboard nav opt-in
-> - L 135-144  DrawList — three lists, three layers
-> - L 145-168  DrawList primitives (terse table)
-> - L 169-186  The Path API (imgui.h:3495-3506)
-> - L 187-199  `PushClipRect` / `PopClipRect` — two functions, two semantics
-> - L 200-215  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
-> - L 216-219  Custom-rendering demo
-> - L 220-231  `ImTextureID` type mismatches
-> - L 232-243  Common pitfalls (each with reproducer + fix)
-> - L 244-248  See also
+> - L  26-62   The item protocol — what every custom widget must do
+> - L  63-111  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
+> - L 112-129  The `IsItem*` query family
+> - L 130-135  Keyboard nav opt-in
+> - L 136-145  DrawList — three lists, three layers
+> - L 146-169  DrawList primitives (terse table)
+> - L 170-187  The Path API (imgui.h:3495-3506)
+> - L 188-200  `PushClipRect` / `PopClipRect` — two functions, two semantics
+> - L 201-216  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
+> - L 217-220  Custom-rendering demo
+> - L 221-232  `ImTextureID` type mismatches
+> - L 233-244  Common pitfalls (each with reproducer + fix)
+> - L 245-249  See also
 <!-- QUICK_NAV_END -->
+
 
 
 Dear ImGui's stock widgets all sit on top of three internal-API calls (`ItemSize`, `ItemAdd`, `ButtonBehavior`) plus an `ImDrawList`. If you skip any of them, the parts you skipped silently break: a missing `ItemSize` means the next widget overlaps yours, a missing `ItemAdd` means hit-testing and keyboard nav don't see your item at all, and rendering before `ItemAdd` bypasses clipping. Read this file before adding the seventh helper that "almost works."
