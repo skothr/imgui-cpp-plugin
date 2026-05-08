@@ -1,4 +1,4 @@
-First time using Dear ImGui in a real app (docking branch, v1.92.x). I've got an editor with a tab strip across the top — each tab shows a filename and has a small `×` close button next to it. Whichever tab I click `×` on, only the first tab in the list ever actually gets deleted.
+First time using Dear ImGui in a real app (docking branch, v1.92.x). I've got an editor with a tab strip across the top - each tab shows a filename and has a small `x` close button next to it. Whichever tab I click `x` on, only the first tab in the list ever actually gets deleted.
 
 The handler fires correctly (I can see it in the debugger, with the right iterator), but `delete_tab` always lands on `tabs[0]`. Here's roughly what my tab-strip submission looks like:
 
@@ -17,7 +17,7 @@ void Editor::draw_tab_strip() {
         }
         ImGui::PopStyleColor();
         ImGui::SameLine(0, 2);
-        if (ImGui::Button("×")) {
+        if (ImGui::Button("x")) {
             delete_tab(tab);
         }
         ImGui::SameLine(0, 8);

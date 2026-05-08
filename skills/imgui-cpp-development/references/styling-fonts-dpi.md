@@ -2,6 +2,27 @@
 
 > **Load this file when:** customizing the look (theme/colors), loading TTF fonts, merging icon fonts, or fixing fuzzy/blurry text or wrong-size UI on a hi-DPI / per-monitor-DPI / Retina display.
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  30-63   1. The style stack
+> - L  64-86   2. Built-in themes
+> - L  87-113  3. `ImGuiStyle` fields most users tune
+> - L 114-135  4. The live theme editor: `ShowStyleEditor()`
+> - L 136-153  5. Font atlas — overview
+> - L 154-174  6. The v1.92 font-system rework (the highest-impact change in this release)
+> - L 175-209  7. Loading custom fonts
+> - L 210-250  8. Merging an icon font
+> - L 251-271  9. Glyph ranges (legacy)
+> - L 272-290  10. `ImFontConfig` fields that matter
+> - L 291-340  11. DPI scaling — three knobs, one frequent confusion
+> - L 341-354  12. Multi-viewport DPI
+> - L 355-377  13. Non-ASCII characters in widget labels
+> - L 378-391  14. Common pitfalls
+> - L 392-396  See also
+<!-- QUICK_NAV_END -->
+
+
 ImGui's style is a stack of named values pushed and popped per frame; fonts live in a single atlas the renderer uploads as a texture; DPI is handled via three orthogonal knobs that are easy to confuse. **v1.92 reworked the font system** — fonts are now dynamically sized, glyph ranges are auto-loaded on demand, and the atlas is rebuilt by the backend rather than the application. Older guidance from the web is often stale: if a tutorial passes glyph ranges to `AddFontFromFileTTF()` or treats `PushFont(font)` as a one-arg call, it predates v1.92.
 
 This reference targets `IMGUI_VERSION 1.92.7` (`imgui.h:32`).
@@ -333,7 +354,30 @@ When `io.ConfigDpiScaleViewports = true`, ImGui rescales the *viewport size itse
 
 ---
 
-## 13. Common pitfalls
+## 13. Non-ASCII characters in widget labels
+
+When a user submits a label containing characters outside basic ASCII - for example `Button("X")` (multiplication sign U+00D7), `Button("->")` (right arrow U+2192), or any glyph in the emoji blocks - the codepoint may or may not actually render depending on **two** things, and the skill should bring up both:
+
+1. **Is the codepoint in the loaded glyph range?** `GetGlyphRangesDefault()` returns just `0x0020-0x00FF` (Basic Latin + Latin-1 Supplement, see `imgui_draw.cpp:4838-4847`). A codepoint outside that range will not render unless you load a font that includes it. With `RendererHasTextures` (v1.92+), the atlas auto-bakes any requested codepoint, so this layer is largely a non-issue on modern backends. On legacy backends, you must add a wider range via `glyph_ranges`.
+2. **Does the actual font face contain a glyph for that codepoint?** Even if the range allows it, the font file (or the embedded `ProggyClean` / `ProggyForever` data) may not have a glyph drawn for that specific character. `ProggyClean` is a tight bitmap font - many Latin-1 Supplement codepoints (multiplication sign, division sign, accented letters, fraction one-half, degree, etc.) are missing or render as a fallback box. `ProggyForever` (vector, v1.92+) has broader coverage but is still not a full Unicode font.
+
+**When you see non-ASCII characters in a user's `Button(...)` / `Text(...)` / `MenuItem(...)` label**, surface this as a follow-up to the main answer. Don't conflate it with the user's primary bug, but note the risk: "this glyph will render correctly only if your loaded font has a glyph for it; default `ProggyClean` does not have a multiplication-sign glyph". Recommend either an ASCII fallback (`"x"` instead of `"X-glyph"`) or loading a font face with the needed glyphs (and a wider range on legacy backends).
+
+Quick reference for codepoints frequently seen in the wild:
+
+| Codepoint | Description                  | In default range? | In ProggyClean? | In ProggyForever? |
+|-----------|------------------------------|-------------------|-----------------|-------------------|
+| U+00D7    | multiplication sign / close  | yes (Latin-1 Supp.) | no - renders as tofu | partial |
+| U+00B0    | degree sign                  | yes               | no              | partial           |
+| U+2192    | right arrow                  | no - Arrows block | n/a             | n/a               |
+| U+2713    | check mark                   | no - Dingbats     | n/a             | n/a               |
+| U+1F4DD-U+1F6FF | most emoji             | no                | n/a             | n/a               |
+
+For anything outside Basic Latin (0x20-0x7E), prefer ASCII alternatives unless you have a specific reason and a font that covers the glyph. Common ASCII swaps: multiplication sign -> `x` or `X`; right arrow -> `->`; left arrow -> `<-`; degree -> `deg`; check -> `[ok]`.
+
+---
+
+## 14. Common pitfalls
 
 | Symptom                                                 | Cause                                                                                   | Fix                                                                                       |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |

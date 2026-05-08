@@ -1,5 +1,23 @@
 > **Load this file when:** writing automated tests against an ImGui-based application — interactive smoke tests during development or headless tests in CI. Covers imgui_test_engine integration: registration, the ItemClick / KeyDown / IM_CHECK API, GUI vs headless modes, and CMake wiring.
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  22-29   What this engine does (and what it doesn't)
+> - L  30-50   Two run modes
+> - L  51-68   Anatomy of a test
+> - L  69-101  Registration
+> - L 102-130  The test API surface
+> - L 131-146  Named references — the path syntax
+> - L 147-187  Initialization recipe
+> - L 188-207  Headless run
+> - L 208-235  Common patterns
+> - L 236-244  Limitations and pitfalls
+> - L 245-250  Recommended workflow
+> - L 251-255  See also
+<!-- QUICK_NAV_END -->
+
+
 # Testing ImGui apps with imgui_test_engine
 
 ## What this engine does (and what it doesn't)

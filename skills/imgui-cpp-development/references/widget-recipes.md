@@ -2,6 +2,27 @@
 
 > **Load this file when:** building day-to-day UI — drag-and-drop, color pickers, tooltips, selectable lists, comboboxes (with virtualization), text input with `std::string`, plotting helpers, tree views, disabled blocks, keyboard-focus management. For more exotic / fully-custom widgets see [custom-widgets.md](custom-widgets.md).
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  27-51   1. Drag and drop
+> - L  52-77   2. Color pickers
+> - L  78-105  3. Tooltips
+> - L 106-128  4. Selectable list with stable IDs
+> - L 129-150  5. Combo with virtualization
+> - L 151-181  6. `InputText` with `std::string`
+> - L 182-198  7. Plotting (`PlotLines`, `PlotHistogram`)
+> - L 199-219  8. Tree view
+> - L 220-233  9. Disabled blocks
+> - L 234-256  10. Keyboard focus
+> - L 257-269  11. `InputTextMultiline`
+> - L 270-283  12. Progress bar
+> - L 284-291  13. File dialogs — explicit non-recipe
+> - L 292-322  14. End-to-end: drag-drop reordering of a list
+> - L 323-327  See also
+<!-- QUICK_NAV_END -->
+
+
 These are the recipes that come up every week. Each one is a stock widget: short, idiomatic, RAII-guarded, with the gotcha that bites people most often called out. When in doubt, the demo (`imgui_demo.cpp`) is the authoritative reference — line ranges below point at the section that originally inspired each recipe.
 
 ## 1. Drag and drop

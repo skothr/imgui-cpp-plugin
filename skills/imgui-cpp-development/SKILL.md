@@ -70,6 +70,14 @@ The references are designed for **independent loading** — load exactly the one
 
 Other backends (Vulkan, DX11, DX12, Metal, WebGPU, SDL3 platform) and other build systems (Meson, Bazel, Premake, raw Makefiles) are tracked as feature requests — not yet first-class in this skill. If the user asks about one of those, say so explicitly and fall back to general guidance + a pointer to the upstream backend file.
 
+**Read references partially when you can.** Each reference longer than ~200 lines opens with a `Quick navigation` block listing every `## section` and its line range. If the user's question maps to a single section, prefer `Read offset=<L> limit=<N>` over loading the whole file — it keeps context lean and lets you compose multiple references without burning the budget. Examples:
+
+- "all my buttons do the same thing" → `id-stack.md` is small enough to read whole
+- "child window grows every frame" → `layout-and-sizing.md`, sections "BeginChild sizing modes" and "The canonical ... pattern" — partial read is fine
+- "× glyph isn't rendering" → `styling-fonts-dpi.md` section 13 (Non-ASCII characters in widget labels) — partial read is the right move
+
+When you load a reference whole, that's a deliberate signal that you expect to consult multiple sections. When you load partially, the routing decision was a single section.
+
 ## LSP-driven navigation of ImGui's source
 
 Dear ImGui's source is itself the canonical documentation: **read it directly when in doubt.** The fastest way is via the `LSP` tool against clangd:

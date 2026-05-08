@@ -1,5 +1,23 @@
 > **Load this file when:** planning an upgrade from v1.91.x or an earlier v1.92.x point release, or wondering whether a tutorial / Stack Overflow answer pre-dates a relevant API change. Distilled from upstream's CHANGELOG.txt, organized by user-impact.
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  22-37   The headline change: the font system rework (v1.92.0)
+> - L  38-81   v1.92.0 (Released 2025-06-25)
+> - L  82-85   v1.92.1 (Released 2025-07-09)
+> - L  86-112  v1.92.2 (Released 2025-08-11)
+> - L 113-116  v1.92.3 (Released 2025-09-17)
+> - L 117-136  v1.92.4 (Released 2025-10-14)
+> - L 137-156  v1.92.5 (Released 2025-11-20)
+> - L 157-204  v1.92.6 (Released 2026-02-17)
+> - L 205-234  v1.92.7 (Released 2026-04-02)
+> - L 235-258  Upgrade checklist (v1.91.x → v1.92.7)
+> - L 259-272  What's still pending upstream
+> - L 273-277  See also
+<!-- QUICK_NAV_END -->
+
+
 # Dear ImGui v1.92.x changelog (distilled)
 
 ## The headline change: the font system rework (v1.92.0)

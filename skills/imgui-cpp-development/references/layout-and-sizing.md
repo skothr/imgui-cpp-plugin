@@ -2,6 +2,22 @@
 
 > **Load this file when:** sizing or scrolling behaves unexpectedly — windows or child frames that won't shrink/grow as expected, "child window keeps growing one pixel each frame", scrollbar appearing or vanishing surprisingly, or any `SetNextWindow*` call seemingly being ignored.
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  22-48   How sizing actually decides
+> - L  49-61   Auto-fit on first frame, ini state thereafter
+> - L  62-71   Why your `SetNextWindowSize` is being ignored
+> - L  72-102  `BeginChild` sizing modes
+> - L 103-165  The canonical "child frame keeps growing every frame" pattern
+> - L 166-175  Scrollbar behavior in `BeginChild`
+> - L 176-199  Style fields that affect sizing
+> - L 200-219  Layout-query functions
+> - L 220-245  `ImGuiSizeCallback` for custom constraints
+> - L 246-250  See also
+<!-- QUICK_NAV_END -->
+
+
 This reference covers how Dear ImGui actually decides window and child sizes, why your `SetNextWindowSize` may be silently ignored, the canonical fix for the "child frame keeps growing" pattern, and the layout-query helpers you reach for when laying widgets out by hand. The deepest pitfalls cluster around two facts: sizing is a *negotiation* between code, the `.ini` file, and content; and `BeginChild` with `AutoResize` flags creates a feedback loop the moment content depends on size.
 
 ## How sizing actually decides

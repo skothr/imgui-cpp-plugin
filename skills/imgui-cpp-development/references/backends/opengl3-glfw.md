@@ -2,6 +2,23 @@
 
 > **Load this file when:** the project's renderer is OpenGL 3 (or OpenGL ES 2/3) and the platform layer is GLFW. For other backends, the corresponding doc isn't in v1; fall back to upstream's `examples/example_<name>/main.cpp` and `imgui_impl_<name>.{h,cpp}`.
 
+<!-- QUICK_NAV_BEGIN -->
+> **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
+>
+> - L  21-24   What this backend is
+> - L  25-53   Public API surface
+> - L  54-88   Init and shutdown
+> - L  89-101  The `glsl_version` argument
+> - L 102-122  Per-frame ordering
+> - L 123-130  GL loader
+> - L 131-149  `ImTextureID` and `ImTextureRef`
+> - L 150-170  Multi-viewport on GLFW
+> - L 171-198  Common pitfalls
+> - L 199-216  Bundled main.cpp template
+> - L 217-221  See also
+<!-- QUICK_NAV_END -->
+
+
 ## What this backend is
 
 The "GLFW + OpenGL 3" pairing is two independent ImGui backend libraries cooperating around one window. **GLFW** owns OS-level concerns: window creation, the GL context, keyboard/mouse/gamepad/clipboard plumbing, monitor enumeration, DPI. **`imgui_impl_glfw`** is the *platform* backend — it installs GLFW callbacks (or asks you to forward to per-event functions) and translates them into `ImGuiIO` events (`AddKeyEvent`, `AddMousePosEvent`, etc.), and each frame it pushes display size and frame timing into ImGui. **`imgui_impl_opengl3`** is the *renderer* backend — it owns the shader, VAO/VBO, and font-atlas texture, and at end-of-frame it walks ImGui's `ImDrawData` and emits indexed triangles through the OpenGL 3.x pipeline (also works for ES 2/3 with the right `#define`). Neither library knows about the other; they're glued together by your `main()`. That separation is why you can swap GLFW out for SDL3, Win32, or anything else without touching renderer code, and swap OpenGL out for Vulkan/DX/Metal/WebGPU without touching platform code.
