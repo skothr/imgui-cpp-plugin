@@ -199,13 +199,56 @@ def _render_event(line: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _list_available_prompts(tests_dir: Path) -> None:
-    prompts_dir = tests_dir / "prompts"
-    print("available prompts:", file=sys.stderr)
-    for p in sorted(prompts_dir.glob("*.md")):
+def _iter_prompt_paths(tests_dir: Path):
+    for p in sorted((tests_dir / "prompts").glob("*.md")):
         if p.name == "README.md":
             continue
-        print(f"  {p.stem}", file=sys.stderr)
+        yield p
+
+
+def _list_available_prompts(tests_dir: Path, *, to_stdout: bool = False) -> None:
+    out = sys.stdout if to_stdout else sys.stderr
+    if not to_stdout:
+        print("available prompts:", file=out)
+    for p in _iter_prompt_paths(tests_dir):
+        # Show first non-empty line of the body as a one-line summary so the
+        # listing is browsable without opening every file.
+        summary = ""
+        for raw in p.read_text().splitlines():
+            line = raw.strip()
+            if line and not line.startswith("#"):
+                summary = line[:80] + ("..." if len(line) > 80 else "")
+                break
+        prefix = "" if to_stdout else "  "
+        if summary:
+            print(f"{prefix}{p.stem:<28} {summary}", file=out)
+        else:
+            print(f"{prefix}{p.stem}", file=out)
+
+
+def _show_prompt(tests_dir: Path, slug: str) -> int:
+    f = tests_dir / "prompts" / f"{slug}.md"
+    if not f.is_file():
+        print(f"no such prompt: {slug}", file=sys.stderr)
+        _list_available_prompts(tests_dir)
+        return 1
+    sys.stdout.write(f.read_text())
+    if not f.read_text().endswith("\n"):
+        sys.stdout.write("\n")
+    return 0
+
+
+def _latest_transcript(tests_dir: Path, slug: str) -> int:
+    candidates = sorted(
+        (tests_dir / "transcripts").glob(f"{slug}__*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        print(f"no transcripts found for prompt: {slug}", file=sys.stderr)
+        return 1
+    print(candidates[0])
+    return 0
 
 
 def _find_plugin_root(start: Path) -> Path:
@@ -231,50 +274,155 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Run a tests/prompts/<slug>.md prompt as a non-interactive Claude Code "
-            "session. Streams output live, saves a transcript, isolates from "
-            "~/.claude history."
+            "session, or inspect the prompt set / past transcripts."
         ),
     )
-    parser.add_argument("prompt", help="prompt slug, e.g. 04-debug-delete-button")
+
+    # Mode flags (mutually exclusive). If none set, we run the prompt.
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "-l", "--list",
+        dest="list_prompts",
+        action="store_true",
+        help="list available prompts and exit",
+    )
+    mode.add_argument(
+        "--show",
+        metavar="PROMPT",
+        help="print the body of PROMPT and exit (no run)",
+    )
+    mode.add_argument(
+        "--latest",
+        metavar="PROMPT",
+        help="print the path to the most recent transcript for PROMPT and exit",
+    )
+
+    parser.add_argument(
+        "prompt",
+        nargs="?",
+        help="prompt slug to run, e.g. 04-debug-delete-button",
+    )
     parser.add_argument(
         "--json",
         dest="json_mode",
         action="store_true",
         help=(
-            "use --output-format stream-json with live pretty-printing — shows "
-            "thinking blocks, tool uses, and tool results inline. Default: text."
+            "use --output-format stream-json with live pretty-printing (shows "
+            "thinking blocks, tool uses, tool results); default: text"
         ),
+    )
+    parser.add_argument(
+        "--effort",
+        choices=["low", "medium", "high", "xhigh", "max"],
+        help=(
+            "override thinking effort for this run (passes --effort to claude). "
+            "Default: whatever your CLAUDE_EFFORT env / settings define."
+        ),
+    )
+    parser.add_argument(
+        "--plugin-dir",
+        dest="plugin_dir",
+        metavar="PATH",
+        help=(
+            "override the auto-detected plugin source root. Default: walks up "
+            "from this script to the dir containing .claude-plugin/. Useful if "
+            "you want to test against a different worktree, or against the "
+            "plugin source on main from inside a feature worktree."
+        ),
+    )
+    parser.add_argument(
+        "--no-capture",
+        dest="capture",
+        action="store_false",
+        help="don't save a transcript to transcripts/ (default: save)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the claude command that would run, then exit; don't run it",
     )
     args = parser.parse_args()
 
-    # tests/run-prompt.py -> tests/
     tests_dir = Path(__file__).resolve().parent
+
+    # Mode dispatch — these short-circuit the run path.
+    if args.list_prompts:
+        _list_available_prompts(tests_dir, to_stdout=True)
+        return 0
+    if args.show:
+        return _show_prompt(tests_dir, args.show)
+    if args.latest:
+        return _latest_transcript(tests_dir, args.latest)
+
+    # From here on, we're running a prompt — slug is required.
+    if not args.prompt:
+        parser.error("prompt slug required (or use --list / --show / --latest)")
+
     prompt_file = tests_dir / "prompts" / f"{args.prompt}.md"
     if not prompt_file.is_file():
         print(f"no such prompt: {prompt_file}", file=sys.stderr)
         _list_available_prompts(tests_dir)
         return 1
 
-    if shutil.which("claude") is None:
+    # Validate claude binary unless we're only doing a dry-run.
+    if not args.dry_run and shutil.which("claude") is None:
         print(
             "claude binary not found on PATH — install Claude Code or check $PATH",
             file=sys.stderr,
         )
         return 1
 
-    try:
-        plugin_root = _find_plugin_root(tests_dir)
-    except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
+    if args.plugin_dir:
+        plugin_root = Path(args.plugin_dir).expanduser().resolve()
+        if not (plugin_root / ".claude-plugin").is_dir():
+            print(
+                f"--plugin-dir {plugin_root}: no .claude-plugin/ subdir found",
+                file=sys.stderr,
+            )
+            return 1
+    else:
+        try:
+            plugin_root = _find_plugin_root(tests_dir)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
 
-    transcripts_dir = tests_dir / "transcripts"
-    transcripts_dir.mkdir(exist_ok=True)
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     ext = "jsonl" if args.json_mode else "txt"
-    out_path = transcripts_dir / f"{args.prompt}__{ts}.{ext}"
+
+    out_path: Path | None = None
+    if args.capture:
+        transcripts_dir = tests_dir / "transcripts"
+        transcripts_dir.mkdir(exist_ok=True)
+        out_path = transcripts_dir / f"{args.prompt}__{ts}.{ext}"
 
     prompt_body = prompt_file.read_text()
+
+    cmd = [
+        "stdbuf", "-oL",
+        "claude", "-p", prompt_body,
+        "--plugin-dir", str(plugin_root),
+    ]
+    if args.json_mode:
+        # claude -p --output-format stream-json requires --verbose in 2.1+.
+        cmd += ["--output-format", "stream-json", "--verbose"]
+    if args.effort:
+        cmd += ["--effort", args.effort]
+
+    # --dry-run: show the resolved command and exit. stdbuf wrapper included
+    # so what you see is what would actually run.
+    if args.dry_run:
+        print("would run:", file=sys.stderr)
+        print("  cwd: " + str(tests_dir), file=sys.stderr)
+        print("  env: CLAUDE_CODE_SKIP_PROMPT_HISTORY=1", file=sys.stderr)
+        # Print as a copy-pasteable command, with the prompt body inlined as
+        # a here-string so the user can experiment with the same invocation.
+        print("  cmd: " + " ".join(
+            f"'{a}'" if " " in a or "\n" in a else a for a in cmd
+        ), file=sys.stderr)
+        if out_path is not None:
+            print("  out: " + str(out_path), file=sys.stderr)
+        return 0
 
     # Terminal header is plain text either way (it's for the human watching).
     human_header = (
@@ -288,18 +436,22 @@ def main() -> int:
     # Transcript file: in TEXT mode, mirror the human header for a
     # self-contained log. In JSONL mode, keep the file strictly valid
     # JSONL by writing a synthetic test_meta event as the first line.
-    if args.json_mode:
-        meta_event = {
-            "type": "test_meta",
-            "prompt_slug": args.prompt,
-            "prompt_body": prompt_body,
-            "started_at_utc": ts,
-            "format": "stream-json",
-            "plugin_root": str(plugin_root),
-        }
-        out_path.write_text(json.dumps(meta_event, ensure_ascii=False) + "\n")
-    else:
-        out_path.write_text(human_header)
+    if out_path is not None:
+        if args.json_mode:
+            meta_event = {
+                "type": "test_meta",
+                "prompt_slug": args.prompt,
+                "prompt_body": prompt_body,
+                "started_at_utc": ts,
+                "format": "stream-json",
+                "plugin_root": str(plugin_root),
+                "effort": args.effort,
+            }
+            out_path.write_text(
+                json.dumps(meta_event, ensure_ascii=False) + "\n"
+            )
+        else:
+            out_path.write_text(human_header)
 
     print(
         f"[..] loading plugin from source: {plugin_root}",
@@ -313,15 +465,6 @@ def main() -> int:
 
     env = os.environ.copy()
     env["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1"
-
-    cmd = [
-        "stdbuf", "-oL",
-        "claude", "-p", prompt_body,
-        "--plugin-dir", str(plugin_root),
-    ]
-    if args.json_mode:
-        # claude -p --output-format stream-json requires --verbose in 2.1+.
-        cmd += ["--output-format", "stream-json", "--verbose"]
 
     try:
         proc = subprocess.Popen(
@@ -351,7 +494,9 @@ def main() -> int:
     # assistant turns, user tool_results, the final result, and any
     # non-suppressed system events. Hook noise is dropped in both views,
     # but the file is also kept strictly valid JSONL (no plain headers).
-    with out_path.open("a") as out_fh:
+    # If --no-capture, out_path is None and we just stream to terminal.
+    out_fh = out_path.open("a") if out_path is not None else None
+    try:
         try:
             for line in proc.stdout:
                 if args.json_mode:
@@ -359,24 +504,35 @@ def main() -> int:
                         ev = json.loads(line)
                     except json.JSONDecodeError:
                         ev = None
-                    if ev is not None and _should_keep_in_jsonl(ev):
+                    if (
+                        out_fh is not None
+                        and ev is not None
+                        and _should_keep_in_jsonl(ev)
+                    ):
                         out_fh.write(line)
                         out_fh.flush()
                     _render_event(line)
                 else:
-                    out_fh.write(line)
-                    out_fh.flush()
+                    if out_fh is not None:
+                        out_fh.write(line)
+                        out_fh.flush()
                     sys.stdout.write(line)
                     sys.stdout.flush()
         finally:
             proc.wait()
 
         # Tag the test boundary so downstream tools can spot a clean end.
-        if args.json_mode:
+        if out_fh is not None and args.json_mode:
             end_event = {"type": "test_end", "exit_code": proc.returncode}
             out_fh.write(json.dumps(end_event) + "\n")
+    finally:
+        if out_fh is not None:
+            out_fh.close()
 
-    print(f"\n[..] transcript saved to {out_path}", file=sys.stderr)
+    if out_path is not None:
+        print(f"\n[..] transcript saved to {out_path}", file=sys.stderr)
+    else:
+        print("\n[..] no transcript saved (--no-capture)", file=sys.stderr)
     return proc.returncode
 
 

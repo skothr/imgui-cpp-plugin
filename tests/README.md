@@ -29,8 +29,25 @@ cd <repo-root>/tests   # or the worktree's tests/ while iterating
 
 # Stream-json with live pretty-printing (thinking blocks, tool uses, results):
 ./run-prompt.py 04-debug-delete-button --json
-# raw JSONL saved to transcripts/04-debug-delete-button__<UTC>.jsonl
+# filtered JSONL saved to transcripts/04-debug-delete-button__<UTC>.jsonl
 ```
+
+### Inspect & control flags
+
+```bash
+./run-prompt.py --list                        # list available prompts (with one-line summaries)
+./run-prompt.py --show 04-debug-delete-button # print the prompt body, no run
+./run-prompt.py --latest 04-debug-delete-button   # path to the most recent transcript
+./run-prompt.py 04-debug-delete-button --dry-run  # show the resolved claude command, don't run
+./run-prompt.py 04-debug-delete-button --no-capture  # run without saving a transcript
+
+# Per-run modifiers (compose freely with --json / --no-capture / --dry-run):
+./run-prompt.py 04-debug-delete-button --effort low      # cheaper test run
+./run-prompt.py 04-debug-delete-button --effort xhigh    # deeper thinking
+./run-prompt.py 04-debug-delete-button --plugin-dir <path>   # test against a different plugin source
+```
+
+`--plugin-dir` is useful for cross-checking: you can be in a feature worktree but explicitly test against `main`'s plugin source by passing the main repo path. By default the script auto-detects whichever worktree it's running in.
 
 What it does:
 
