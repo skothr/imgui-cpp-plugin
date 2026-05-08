@@ -6,6 +6,18 @@ This document captures what each prompt is actually testing — the conventions 
 
 If a prompt body and this intent doc disagree (the prompt mentions an idiom by name), the prompt is too leaky and should be tightened.
 
+## Style — diagnostic prompts are symptoms-first
+
+For "broken code, fix it" prompts (04, 05, 06): **the prompt body must NOT include the broken code.** A real user mid-debug describes the symptom and what they've already tried, not a surgically minimal reproducer. Pasting the code hands the answer to the skill — the skill then just needs to spot the bug in 6 lines, which is a much easier task than what we actually need to evaluate (does the skill reconstruct the likely bad pattern from the symptom alone?).
+
+The diagnostic-prompt rubric is therefore harder:
+
+1. **Symptom interpretation** — does the skill correctly map a symptom ("buttons all delete tab[0]" / "child panel grows 1px per frame" / "popup flashes for one frame") to the canonical bug pattern that produces it?
+2. **Pattern reconstruction** — does the skill describe the likely bad code structure ("you're probably calling `ImGui::Button(\"Delete\")` inside a loop without `PushID`") instead of asking the user to paste their code?
+3. **Fix demonstration** — does the skill show corrected code matching the reconstructed pattern, even though the user didn't paste theirs?
+
+A skill that says "please paste your code" on a diagnostic prompt is a partial pass at best — real users get faster help when the skill recognizes the symptom and reconstructs.
+
 ## Cross-prompt expectations (apply to all prompts)
 
 These are the skill defaults that should show up unprompted in every relevant response — captured here once instead of repeated below.

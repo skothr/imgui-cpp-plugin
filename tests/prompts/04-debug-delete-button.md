@@ -1,15 +1,5 @@
-I'm building an editor in C++ with Dear ImGui (docking branch, v1.92.x). My UI has a list of opened tabs, and each tab has a `Delete` button next to its name.
+First time using Dear ImGui in a real app (docking branch, v1.92.x). I've got a list of opened tabs in my editor and each tab has a Delete button next to its name. Whichever tab I click Delete on, only the first tab ever actually gets deleted.
 
-Bug: clicking `Delete` on tab #3 always deletes tab #0. Walking through it in the debugger, the click handler does fire and the iterator IS pointing at tab #3 — but the action lands on tab #0. Why?
+The handler fires correctly — I checked in the debugger, the iterator IS pointing at the right tab when the click registers — but the action lands on tab[0] every time.
 
-```cpp
-for (auto& tab : tabs) {
-    if (ImGui::Button("Delete")) {
-        delete_tab(tab);
-    }
-    ImGui::SameLine();
-    ImGui::TextUnformatted(tab.name.c_str());
-}
-```
-
-Diagnose the root cause and show me the fix. Save your full reply (markdown, with the corrected code) to `tests/04-debug-delete-button/response.md`.
+What am I doing wrong? Save your full reply (markdown) to `tests/04-debug-delete-button/response.md`.

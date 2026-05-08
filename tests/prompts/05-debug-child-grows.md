@@ -1,15 +1,5 @@
-My Dear ImGui app has a child window that grows about a pixel taller every frame until it eventually fills the viewport. The relevant code:
+Dear ImGui, docking branch v1.92.x. My code editor's main child panel grows about a pixel taller every frame, eventually filling the viewport. The list of code lines I'm rendering doesn't change between frames — it's literally static content. The parent is just a vanilla `Begin("Editor")` window with no special flags.
 
-```cpp
-ImGui::BeginChild("##editor", ImVec2(0, 0), ImGuiChildFlags_AutoResizeY);
-for (auto& line : code_lines) {
-    ImGui::TextUnformatted(line.c_str());
-}
-ImGui::EndChild();
-```
-
-`code_lines` doesn't change between frames. The parent is a normal `Begin("Editor")` window with no special flags. Docking branch v1.92.x.
-
-What is actually happening — why does this loop in the layout system, and what are my options? I want to understand the root cause before picking a fix; please explain the feedback before showing me corrected code.
+I want to understand the root cause before picking a fix — why is the layout looping like this? Then walk me through my options.
 
 Save the full reply to `tests/05-debug-child-grows/response.md`.
