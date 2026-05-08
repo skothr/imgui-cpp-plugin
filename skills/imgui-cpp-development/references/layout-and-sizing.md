@@ -7,17 +7,18 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  16-80   1. The canonical "child frame keeps growing every frame" pattern
-> - L  81-113  2. `BeginChild` sizing modes (cheat sheet)
-> - L 114-127  3. Why your `SetNextWindowSize` is being ignored
-> - L 128-151  4. Layout-query functions
-> - L 152-180  5. How sizing actually decides
-> - L 181-195  6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
-> - L 196-207  7. Scrollbar behavior in `BeginChild`
-> - L 208-235  8. Style fields that affect sizing
-> - L 236-263  9. `ImGuiSizeCallback` for custom constraints
-> - L 264-268  See also
+> - L  29-93   1. The canonical "child frame keeps growing every frame" pattern
+> - L  94-126  2. `BeginChild` sizing modes (cheat sheet)
+> - L 127-140  3. Why your `SetNextWindowSize` is being ignored
+> - L 141-164  4. Layout-query functions
+> - L 165-193  5. How sizing actually decides
+> - L 194-208  6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
+> - L 209-220  7. Scrollbar behavior in `BeginChild`
+> - L 221-248  8. Style fields that affect sizing
+> - L 249-276  9. `ImGuiSizeCallback` for custom constraints
+> - L 277-281  See also
 <!-- QUICK_NAV_END -->
+
 
 
 This reference covers how Dear ImGui actually decides window and child sizes, why your `SetNextWindowSize` may be silently ignored, the canonical fix for the "child frame keeps growing" pattern, and the layout-query helpers you reach for when laying widgets out by hand. The deepest pitfalls cluster around two facts: sizing is a *negotiation* between code, the `.ini` file, and content; and `BeginChild` with `AutoResize` flags creates a feedback loop the moment content depends on size.

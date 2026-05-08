@@ -7,21 +7,22 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  31-63   TLDR — minimal correct custom widget
-> - L  64-100  The item protocol — what every custom widget must do
-> - L 101-149  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
-> - L 150-167  The `IsItem*` query family
-> - L 168-173  Keyboard nav opt-in
-> - L 174-183  DrawList — three lists, three layers
-> - L 184-207  DrawList primitives (terse table)
-> - L 208-225  The Path API (imgui.h:3495-3506)
-> - L 226-238  `PushClipRect` / `PopClipRect` — two functions, two semantics
-> - L 239-254  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
-> - L 255-258  Custom-rendering demo
-> - L 259-270  `ImTextureID` type mismatches
-> - L 271-282  Common pitfalls (each with reproducer + fix)
-> - L 283-287  See also
+> - L  33-65   TLDR — minimal correct custom widget
+> - L  66-102  The item protocol — what every custom widget must do
+> - L 103-151  Walk-through: `ImGui::ButtonEx` (imgui_widgets.cpp:782-821)
+> - L 152-169  The `IsItem*` query family
+> - L 170-175  Keyboard nav opt-in
+> - L 176-185  DrawList — three lists, three layers
+> - L 186-209  DrawList primitives (terse table)
+> - L 210-227  The Path API (imgui.h:3495-3506)
+> - L 228-240  `PushClipRect` / `PopClipRect` — two functions, two semantics
+> - L 241-256  `ChannelsSplit` / `ChannelsMerge` — out-of-order rendering
+> - L 257-260  Custom-rendering demo
+> - L 261-272  `ImTextureID` type mismatches
+> - L 273-284  Common pitfalls (each with reproducer + fix)
+> - L 285-289  See also
 <!-- QUICK_NAV_END -->
+
 
 
 

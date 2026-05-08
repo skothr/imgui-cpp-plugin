@@ -1,30 +1,32 @@
+# Testing ImGui apps with imgui_test_engine
+
 > **Load this file when:** writing automated tests against an ImGui-based application — interactive smoke tests during development or headless tests in CI. Covers imgui_test_engine integration: registration, the ItemClick / KeyDown / IM_CHECK API, GUI vs headless modes, and CMake wiring.
+>
+> **Tier guidance:** Tier 1 covers the 80% case — what the engine does (and doesn't), anatomy of a test, the registration recipe, and the API cheat sheet. Tier 2 is mechanism — two run modes, path syntax for named references, the CMake init recipe, the headless frame pump, common interaction patterns. Tier 3 is the limitations + workflow appendix. Default load: Tier 1 only via the Quick navigation below.
 
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  26-33   What this engine does (and what it doesn't)
-> - L  34-54   Two run modes
-> - L  55-72   Anatomy of a test
-> - L  73-105  Registration
-> - L 106-134  The test API surface
-> - L 135-150  Named references — the path syntax
-> - L 151-191  Initialization recipe
-> - L 192-211  Headless run
-> - L 212-239  Common patterns
-> - L 240-248  Limitations and pitfalls
-> - L 249-254  Recommended workflow
-> - L 255-259  See also
+> - L  14-23   1. What this engine does (and what it doesn't)
+> - L  24-43   2. Anatomy of a test
+> - L  44-78   3. Registration recipe
+> - L  79-111  4. The test API surface
+> - L 112-134  5. Two run modes
+> - L 135-152  6. Named references — the path syntax
+> - L 153-195  7. Initialization recipe (CMake + bootstrap)
+> - L 196-217  8. Headless run pump
+> - L 218-249  9. Common patterns
+> - L 250-260  10. Limitations and pitfalls
+> - L 261-268  11. Recommended workflow
+> - L 269-273  See also
 <!-- QUICK_NAV_END -->
 
 
+---
 
+# Tier 1 — Quick answers
 
-
-
-# Testing ImGui apps with imgui_test_engine
-
-## What this engine does (and what it doesn't)
+## 1. What this engine does (and what it doesn't)
 
 `imgui_test_engine` exercises the **interaction logic and UI state** of an ImGui application. It feeds simulated events into `ImGuiIO` (mouse position, button presses, key chords, character input) the same way the platform backend would, then runs your normal frame loop so the GuiFunc submits the UI under test. Test code drives those interactions through path-based references (`"Window/Button"`) and asserts via `IM_CHECK`.
 
@@ -32,28 +34,9 @@ It does **not** do pixel-level rendering verification. The engine knows nothing 
 
 The implication for test design: write assertions against your application's data model, not against rendered output. If clicking the OK button is supposed to set `state.confirmed = true`, that's the assertion. The engine's job is to make the click happen and pump frames; your job is to expose the state.
 
-## Two run modes
+---
 
-The engine runs in one of two modes, chosen at startup via `ImGuiTestEngineIO::ConfigRunSpeed`:
-
-- **GUI mode** — the engine appears as a window inside your live application (rendered by `ImGuiTestEngine_ShowTestEngineWindows`). You can pause, step, re-run, inspect logs interactively. This is the authoring mode: write a test, run it watch-speed, see where it goes wrong, fix it, re-run.
-- **Headless mode** — no window. The engine pumps its own frames, runs the queued tests, exits with a return code based on the result summary. This is the CI mode.
-
-The speed enum, from `imgui_te_engine.h:77-83`:
-
-```cpp
-enum ImGuiTestRunSpeed : int
-{
-    ImGuiTestRunSpeed_Fast          = 0,    // Run tests as fast as possible (teleport mouse, skip delays, etc.)
-    ImGuiTestRunSpeed_Normal        = 1,    // Run tests at human watchable speed (for debugging)
-    ImGuiTestRunSpeed_Cinematic     = 2,    // Run tests with pauses between actions (for e.g. tutorials)
-    ImGuiTestRunSpeed_COUNT
-};
-```
-
-`Fast` for headless, `Normal` for GUI authoring, `Cinematic` only when recording demo videos.
-
-## Anatomy of a test
+## 2. Anatomy of a test
 
 A test has up to three callbacks. From `imgui_te_engine.h:69-75`:
 
@@ -71,7 +54,9 @@ enum ImGuiTestActiveFunc : int
 - **`TestFunc`** drives interactions and asserts. It runs as a coroutine: when it calls `ctx->Yield()` or any action that pumps frames (most of them), the engine steps to the next frame, runs `GuiFunc`, then resumes `TestFunc`.
 - **`TeardownFunc`** runs once after the test, regardless of pass/fail. Use sparingly — most cleanup belongs in `UserData` constructors/destructors.
 
-## Registration
+---
+
+## 3. Registration recipe
 
 The macro `IM_REGISTER_TEST(engine, "category", "test_name")` from `imgui_te_engine.h:207` returns an `ImGuiTest*` whose function pointers you populate. Typical pattern:
 
@@ -104,7 +89,9 @@ void register_counter_test(ImGuiTestEngine* engine, CounterState* state) {
 
 This is the same shape used by `assets/imgui_test_skeleton.cpp.template`, which is the file to start from rather than retyping by hand.
 
-## The test API surface
+---
+
+## 4. The test API surface
 
 Pulled from `imgui_te_context.h`. Names you'll reach for daily:
 
@@ -133,7 +120,34 @@ Pulled from `imgui_te_context.h`. Names you'll reach for daily:
 
 For the full surface, including docking helpers (`DockInto`, `UndockWindow`), tables (`TableSetColumnEnabled`, `TableClickHeader`), and viewports, read `imgui_te_context.h` directly — the file is well-commented and is the source of truth.
 
-## Named references — the path syntax
+---
+
+# Tier 2 — Mechanism
+
+## 5. Two run modes
+
+The engine runs in one of two modes, chosen at startup via `ImGuiTestEngineIO::ConfigRunSpeed`:
+
+- **GUI mode** — the engine appears as a window inside your live application (rendered by `ImGuiTestEngine_ShowTestEngineWindows`). You can pause, step, re-run, inspect logs interactively. This is the authoring mode: write a test, run it watch-speed, see where it goes wrong, fix it, re-run.
+- **Headless mode** — no window. The engine pumps its own frames, runs the queued tests, exits with a return code based on the result summary. This is the CI mode.
+
+The speed enum, from `imgui_te_engine.h:77-83`:
+
+```cpp
+enum ImGuiTestRunSpeed : int
+{
+    ImGuiTestRunSpeed_Fast          = 0,    // Run tests as fast as possible (teleport mouse, skip delays, etc.)
+    ImGuiTestRunSpeed_Normal        = 1,    // Run tests at human watchable speed (for debugging)
+    ImGuiTestRunSpeed_Cinematic     = 2,    // Run tests with pauses between actions (for e.g. tutorials)
+    ImGuiTestRunSpeed_COUNT
+};
+```
+
+`Fast` for headless, `Normal` for GUI authoring, `Cinematic` only when recording demo videos.
+
+---
+
+## 6. Named references — the path syntax
 
 Items are addressed by string paths, hashed under the hood. From `imgui_te_context.h:301-309`:
 
@@ -149,7 +163,9 @@ Plus wildcard support: `"**/Save"` searches any depth for an item named `"Save"`
 
 A `SetRef` call may take multiple frames to resolve when given an item ID (it has to hover the window first). For window names that's instant.
 
-## Initialization recipe
+---
+
+## 7. Initialization recipe (CMake + bootstrap)
 
 The bootstrap is the same in GUI and headless modes — only the frame pump differs. Walk through it once; from then on copy the skeleton.
 
@@ -190,7 +206,9 @@ ImGuiTestEngine_InstallDefaultCrashHandler();
 
 3. Register tests, queue them, pump frames, get the summary, shut down. The bundled skeleton (`assets/imgui_test_skeleton.cpp.template`) has the full sequence wired up; load it rather than retyping.
 
-## Headless run
+---
+
+## 8. Headless run pump
 
 The minimum frame pump for headless mode (no platform/renderer backend needed — the engine drives ImGui purely through the IO interface):
 
@@ -210,9 +228,11 @@ return summary.CountTested == summary.CountSuccess ? 0 : 1;
 
 `PostSwap` is what advances the engine's coroutine — without it, `TestFunc` never resumes after a `Yield`. In a real GUI loop you call it after `SwapBuffers()` (or whatever your renderer's equivalent is).
 
-## Common patterns
+---
 
-**Open a window, click a button, expect state change.** The basic shape — see the registration example above. The keys are: `SetRef` to anchor the path; `ItemClick` to drive the interaction; `IM_CHECK_EQ` against state owned by `UserData`.
+## 9. Common patterns
+
+**Open a window, click a button, expect state change.** The basic shape — see the registration example in §3. The keys are: `SetRef` to anchor the path; `ItemClick` to drive the interaction; `IM_CHECK_EQ` against state owned by `UserData`.
 
 **Type into an InputText, expect the bound variable to update.**
 
@@ -238,7 +258,11 @@ ctx->ItemClick("##list/Folder/Subfolder/Edit");
 
 **Wait for animation or async settle.** `ctx->Yield()` advances one frame; `ctx->Yield(N)` advances N. For longer settling use `ctx->SleepStandard()` (skipped in `Fast` mode). `WaitForItemBlinkActive` exists for cases where the engine itself needs to wait for an item-highlight pulse to subside.
 
-## Limitations and pitfalls
+---
+
+# Tier 3 — Appendix
+
+## 10. Limitations and pitfalls
 
 - **No pixel asserts.** The engine doesn't compare framebuffers. If "the button looks right" matters, that's a separate pipeline.
 - **IDs change with layout, paths break.** Same widget label inside two different windows can collide; reordered docked windows produce different paths. When a test's path becomes brittle, give the widget a stable `"Label###unique-id"` override and target `"###unique-id"` directly. The `**` wildcard is a fallback when the ancestry is unstable.
@@ -247,11 +271,15 @@ ctx->ItemClick("##list/Folder/Subfolder/Edit");
 - **`GuiFunc` runs every frame.** Side effects in it run repeatedly. Treat it as pure UI submission against `UserData`; do work elsewhere.
 - **Conditional `End` discipline still applies.** The same Begin/End pairing rules that govern application code apply inside `GuiFunc`. Use `ImScoped::*` guards there too.
 
-## Recommended workflow
+---
+
+## 11. Recommended workflow
 
 Author tests interactively in GUI mode — start the app, find the test in the engine window, run it with `ImGuiTestRunSpeed_Normal`, watch where it diverges from your expectation, fix. When the test stabilizes, graduate it to the headless build by adding a registration call to your CI test main. CI runs `ImGuiTestRunSpeed_Fast`; expect a 10-100x speedup over watchable mode.
 
 For new functionality: write the failing test against the desired behavior first, in GUI mode. The engine's interactive runner gives you a fast TDD loop because `GuiFunc` is your normal UI submission — you can reason about both at once.
+
+---
 
 ## See also
 

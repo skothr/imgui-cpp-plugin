@@ -49,39 +49,50 @@ Apply these unless the user has explicitly opted out or the surrounding code fol
 
 The references are designed for **independent loading** — load exactly the one(s) the task needs and nothing else.
 
-| If the task is about… | Load |
+| If the task is about… | Load (default tier) |
 |---|---|
-| Setting up a new ImGui project (build, main loop) | [references/bootstrap.md](references/bootstrap.md) |
-| Detecting / installing / pinning ImGui in a project | [references/locate-imgui.md](references/locate-imgui.md) |
-| The per-frame lifecycle (NewFrame / Render / multi-viewport) | [references/frame-loop.md](references/frame-loop.md) |
-| ID stack rules, collisions, debugging | [references/id-stack.md](references/id-stack.md) — most queries need only Tier 1 (`Read offset=1 limit=38`) |
-| Window / Child sizing, scroll behavior, child-frame growth bugs | [references/layout-and-sizing.md](references/layout-and-sizing.md) |
-| Style stack, fonts, font atlas, DPI | [references/styling-fonts-dpi.md](references/styling-fonts-dpi.md) |
-| Docking layouts, multi-viewport | [references/docking-and-viewports.md](references/docking-and-viewports.md) |
-| Tables (BeginTable / column setup / sorting) | [references/tables.md](references/tables.md) |
-| Modals, popups, context menus | [references/modals-and-popups.md](references/modals-and-popups.md) |
-| Day-to-day widget recipes (drag-drop, color, tooltip, combo, tree, disabled, focus) | [references/widget-recipes.md](references/widget-recipes.md) |
-| Authoring custom widgets, DrawList primitives, hit-testing | [references/custom-widgets.md](references/custom-widgets.md) |
-| Cross-cutting pitfall index → which deep-dive | [references/pitfalls-catalog.md](references/pitfalls-catalog.md) |
-| What changed in v1.92.x (upgrade planning) | [references/changelog-1.92.x.md](references/changelog-1.92.x.md) |
-| Headless / interactive testing of ImGui apps | [references/testing.md](references/testing.md) |
-| Navigating ImGui's monofiles via clangd / LSP | [references/lsp-navigation.md](references/lsp-navigation.md) |
-| Backend: OpenGL 3 + GLFW (init, frame, shutdown, pitfalls) | [references/backends/opengl3-glfw.md](references/backends/opengl3-glfw.md) |
+| Setting up a new ImGui project (build, main loop) | [references/bootstrap.md](references/bootstrap.md) — short, load whole |
+| Detecting / installing / pinning ImGui in a project | [references/locate-imgui.md](references/locate-imgui.md) — short, load whole |
+| The per-frame lifecycle (NewFrame / Render / multi-viewport) | [references/frame-loop.md](references/frame-loop.md) — short, load whole |
+| ID stack rules, collisions, debugging | [references/id-stack.md](references/id-stack.md) — Tier 1 only is enough for ~80% of queries |
+| Window / Child sizing, scroll behavior, child-frame growth bugs | [references/layout-and-sizing.md](references/layout-and-sizing.md) — Tier 1 covers "child keeps growing" + sizing-mode cheat sheet |
+| Style stack, fonts, font atlas, DPI | [references/styling-fonts-dpi.md](references/styling-fonts-dpi.md) — Tier 1 covers all common recipes |
+| Docking layouts, multi-viewport | [references/docking-and-viewports.md](references/docking-and-viewports.md) — Tier 1 covers config + dockspace + viewport setup |
+| Tables (BeginTable / column setup / sorting) | [references/tables.md](references/tables.md) — TLDR at top has the canonical recipe |
+| Modals, popups, context menus | [references/modals-and-popups.md](references/modals-and-popups.md) — Tier 1 covers canonical modal + the "OpenPopup every frame" bug |
+| Day-to-day widget recipes (drag-drop, color, tooltip, combo, tree, disabled, focus) | [references/widget-recipes.md](references/widget-recipes.md) — symptom-to-recipe table at top, then load just one recipe |
+| Authoring custom widgets, DrawList primitives, hit-testing | [references/custom-widgets.md](references/custom-widgets.md) — TLDR has the 6-step skeleton |
+| Cross-cutting pitfall index → which deep-dive | [references/pitfalls-catalog.md](references/pitfalls-catalog.md) — already a card-per-row index |
+| What changed in v1.92.x (upgrade planning) | [references/changelog-1.92.x.md](references/changelog-1.92.x.md) — section per version |
+| Headless / interactive testing of ImGui apps | [references/testing.md](references/testing.md) — Tier 1 covers anatomy + registration + API surface |
+| Navigating ImGui's monofiles via clangd / LSP | [references/lsp-navigation.md](references/lsp-navigation.md) — short, load whole |
+| Backend: OpenGL 3 + GLFW (init, frame, shutdown, pitfalls) | [references/backends/opengl3-glfw.md](references/backends/opengl3-glfw.md) — Tier 1 covers init + frame + multi-viewport + pitfalls |
 
 Other backends (Vulkan, DX11, DX12, Metal, WebGPU, SDL3 platform) and other build systems (Meson, Bazel, Premake, raw Makefiles) are tracked as feature requests — not yet first-class in this skill. If the user asks about one of those, say so explicitly and fall back to general guidance + a pointer to the upstream backend file.
 
-**Read references partially when you can.** Two navigation aids:
+**Read references partially when you can.** Each reference uses one of three navigational shapes; pick the right partial-load strategy for each:
 
-1. **Tier guidance** at the top of refactored docs (currently `id-stack.md`). Tier 1 = quick answer (~30-40 lines), Tier 2 = mechanism + catalog, Tier 3 = appendix. Most queries only need Tier 1; load Tier 2-3 when the question is "why" / "what else can collide" / version-specific.
-2. **Quick navigation** block in every reference longer than ~200 lines, listing every `## section` and its line range. If the user's question maps to a single section, `Read offset=<L> limit=<N>` keeps context lean.
+1. **Three-tier topical reference** (`id-stack`, `layout-and-sizing`, `styling-fonts-dpi`, `docking-and-viewports`, `modals-and-popups`, `testing`, `backends/opengl3-glfw`). Opens with a "Tier guidance" line giving exact line ranges. Tier 1 covers the 80% case (canonical recipes + diagnosis); Tier 2 is mechanism/catalog; Tier 3 is appendix. Default: load Tier 1 only.
+2. **Q&A / API catalog** (`widget-recipes`, `pitfalls-catalog`, `tables`, `custom-widgets`). Self-contained sections; either a symptom-to-recipe table or a TLDR sits near the top. Default: read the lookup table or TLDR, then jump to one section via the Quick navigation block.
+3. **Linear walkthroughs** (`bootstrap`, `locate-imgui`, `lsp-navigation`, `frame-loop`, `raii-scope-guards`, `changelog-1.92.x`). Short enough to load whole, or read in source order.
+
+Whichever shape, every reference > ~200 lines opens with a `<!-- QUICK_NAV_BEGIN -->` block listing every section and its current line range — use `Read offset=<L> limit=<N>` against that.
 
 Examples:
 
-- "all my buttons do the same thing" → `id-stack.md` Tier 1 only (`Read offset=1 limit=38`); load Tier 2 only if the user pushes for mechanism or has a non-loop variant.
-- "child window grows every frame" → `layout-and-sizing.md`, sections "BeginChild sizing modes" and "The canonical ... pattern" — partial read.
-- "x glyph isn't rendering" → `styling-fonts-dpi.md` section 13 (Non-ASCII characters in widget labels) — partial read.
+- "all my buttons do the same thing" → `id-stack.md` Tier 1 only (`Read offset=1 limit=38`).
+- "child window grows every frame" → `layout-and-sizing.md` Tier 1 (the §1 fix recipe); load Tier 2 mechanism only if user asks why.
+- "x glyph isn't rendering" → `styling-fonts-dpi.md` Tier 1 §6 (Non-ASCII characters in widget labels) via partial read.
+- "how do I set up GLFW + OpenGL?" → `backends/opengl3-glfw.md` Tier 1 (init + per-frame + multi-viewport + pitfalls) is the entire answer.
+- "how do I make a tooltip?" → `widget-recipes.md` symptom table → §3 Tooltips, partial read.
 
 Loading a reference whole is a deliberate signal that you expect to consult multiple sections. Default to partial.
+
+If you've edited a reference and the section line ranges have shifted, refresh the Quick navigation blocks by running:
+
+```bash
+python3 skills/imgui-cpp-development/scripts/refresh-quicknav.py
+```
 
 ## LSP-driven navigation of ImGui's source
 
