@@ -67,6 +67,19 @@ SUMMARY_MAX = 400
 # System events that are pure noise on a normal session and should be hidden.
 SYSTEM_SUPPRESS = {"hook_started", "hook_response", "init"}
 
+# Event types we keep in the JSONL transcript. Mirror what the pretty-printer
+# actually renders to the terminal; skip the rest. The .jsonl file thus
+# contains exactly the events the user sees, in valid JSONL form (no plain
+# text headers polluting it).
+JSONL_KEEP_TYPES = {"assistant", "user", "result"}
+
+
+def _should_keep_in_jsonl(ev: dict) -> bool:
+    et = ev.get("type")
+    if et == "system":
+        return ev.get("subtype", "") not in SYSTEM_SUPPRESS
+    return et in JSONL_KEEP_TYPES
+
 
 def _summarize(value, max_len: int = SUMMARY_MAX) -> str:
     if isinstance(value, (dict, list)):
@@ -261,16 +274,32 @@ def main() -> int:
     ext = "jsonl" if args.json_mode else "txt"
     out_path = transcripts_dir / f"{args.prompt}__{ts}.{ext}"
 
-    # Self-contained transcript: prompt up front, then claude's output.
     prompt_body = prompt_file.read_text()
-    header = (
+
+    # Terminal header is plain text either way (it's for the human watching).
+    human_header = (
         f"=== PROMPT ({args.prompt}) ===\n"
         f"{prompt_body}\n"
         f"=== CLAUDE ({'stream-json' if args.json_mode else 'text'}, {ts}) ===\n"
     )
-    sys.stdout.write(header)
+    sys.stdout.write(human_header)
     sys.stdout.flush()
-    out_path.write_text(header)
+
+    # Transcript file: in TEXT mode, mirror the human header for a
+    # self-contained log. In JSONL mode, keep the file strictly valid
+    # JSONL by writing a synthetic test_meta event as the first line.
+    if args.json_mode:
+        meta_event = {
+            "type": "test_meta",
+            "prompt_slug": args.prompt,
+            "prompt_body": prompt_body,
+            "started_at_utc": ts,
+            "format": "stream-json",
+            "plugin_root": str(plugin_root),
+        }
+        out_path.write_text(json.dumps(meta_event, ensure_ascii=False) + "\n")
+    else:
+        out_path.write_text(human_header)
 
     print(
         f"[..] loading plugin from source: {plugin_root}",
@@ -316,22 +345,38 @@ def main() -> int:
     # stdout=subprocess.PIPE guarantees a real stream here at runtime.
     assert proc.stdout is not None
 
-    # Fan out: every line from claude → append to transcript file AND
-    # render to stdout (raw in text mode, pretty in JSON mode).
+    # Stream from claude. In TEXT mode every line goes to both terminal and
+    # the .txt file. In JSON mode the terminal gets the pretty-printed view
+    # while the .jsonl file gets only events the user actually saw —
+    # assistant turns, user tool_results, the final result, and any
+    # non-suppressed system events. Hook noise is dropped in both views,
+    # but the file is also kept strictly valid JSONL (no plain headers).
     with out_path.open("a") as out_fh:
         try:
             for line in proc.stdout:
-                out_fh.write(line)
-                out_fh.flush()
                 if args.json_mode:
+                    try:
+                        ev = json.loads(line)
+                    except json.JSONDecodeError:
+                        ev = None
+                    if ev is not None and _should_keep_in_jsonl(ev):
+                        out_fh.write(line)
+                        out_fh.flush()
                     _render_event(line)
                 else:
+                    out_fh.write(line)
+                    out_fh.flush()
                     sys.stdout.write(line)
                     sys.stdout.flush()
         finally:
             proc.wait()
 
-    print(f"\n· transcript saved to {out_path}", file=sys.stderr)
+        # Tag the test boundary so downstream tools can spot a clean end.
+        if args.json_mode:
+            end_event = {"type": "test_end", "exit_code": proc.returncode}
+            out_fh.write(json.dumps(end_event) + "\n")
+
+    print(f"\n[..] transcript saved to {out_path}", file=sys.stderr)
     return proc.returncode
 
 
