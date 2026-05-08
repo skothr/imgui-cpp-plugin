@@ -67,10 +67,12 @@ SUMMARY_MAX = 400
 # System events that are pure noise on a normal session and should be hidden.
 SYSTEM_SUPPRESS = {"hook_started", "hook_response", "init"}
 
-# Event types we keep in the JSONL transcript. Mirror what the pretty-printer
-# actually renders to the terminal; skip the rest. The .jsonl file thus
-# contains exactly the events the user sees, in valid JSONL form (no plain
-# text headers polluting it).
+# Event types we keep in the JSONL transcript. Stream events (token-level
+# deltas from --include-partial-messages) are deliberately excluded — they're
+# a live-view concern, and emitting every text-delta would balloon the
+# .jsonl by ~100x and make downstream parsing miserable. The transcript
+# stays at message granularity; the live terminal view is where partial
+# tokens render.
 JSONL_KEEP_TYPES = {"assistant", "user", "result"}
 
 
@@ -79,6 +81,18 @@ def _should_keep_in_jsonl(ev: dict) -> bool:
     if et == "system":
         return ev.get("subtype", "") not in SYSTEM_SUPPRESS
     return et in JSONL_KEEP_TYPES
+
+
+# Per-block bookkeeping for partial-message streaming. Keyed by (message_id,
+# block_index). Reset implicitly per message — message_start clears stale
+# state from prior turns by the time a new index 0 arrives. We track:
+#   _partial_active: block_type currently open at that key (so content_block_stop
+#                    can emit the right close marker for thinking blocks).
+#   _partial_streamed: blocks that received at least one text/thinking delta.
+#                      Consulted by _handle_assistant to skip re-emitting
+#                      content the user already saw stream past.
+_partial_active: dict[tuple[str, int], str] = {}
+_partial_streamed: set[tuple[str, int]] = set()
 
 
 def _summarize(value, max_len: int = SUMMARY_MAX) -> str:
@@ -120,12 +134,21 @@ def _emit_thinking(thinking: str) -> None:
 
 
 def _handle_assistant(ev: dict) -> None:
-    for block in (ev.get("message") or {}).get("content") or []:
+    msg_id = (ev.get("message") or {}).get("id", "")
+    for idx, block in enumerate((ev.get("message") or {}).get("content") or []):
         bt = block.get("type")
+        # If --include-partial-messages was on, the text/thinking content for
+        # this block already streamed past as deltas. Emitting the full block
+        # again would duplicate it. Tool-use blocks still get emitted here:
+        # input_json deltas don't render as readable JSON mid-stream, so the
+        # assembled tool-use input at message level is the human-friendly view.
+        already_streamed = (msg_id, idx) in _partial_streamed
         if bt == "text":
-            _emit(block.get("text", ""))
+            if not already_streamed:
+                _emit(block.get("text", ""))
         elif bt == "thinking":
-            _emit_thinking(block.get("thinking", ""))
+            if not already_streamed:
+                _emit_thinking(block.get("thinking", ""))
         elif bt == "tool_use":
             _emit_block(
                 f"[tool: {block.get('name', '?')}]",
@@ -133,6 +156,57 @@ def _handle_assistant(ev: dict) -> None:
             )
         elif bt == "tool_result":  # defensive — usually appears under user
             _emit_block("[tool_result]", _summarize(block.get("content", "")))
+
+
+def _handle_stream_event(ev: dict) -> None:
+    """Render token-level deltas from --include-partial-messages.
+
+    Event shape (mirrors the Anthropic SSE format):
+        {"type":"stream_event",
+         "event":{"type":"content_block_delta","index":N,
+                  "delta":{"type":"text_delta","text":"..."}}}
+
+    We render text_delta and thinking_delta inline so the user sees prose
+    appear character-by-character. input_json_delta (tool-use input
+    streaming) is skipped — the assembled tool_use comes through later as
+    a message-level event and renders cleanly there. signature_delta and
+    citations_delta are also skipped.
+    """
+    inner = ev.get("event") or {}
+    et = inner.get("type")
+    msg_id = (inner.get("message") or {}).get("id") or ev.get("session_id", "")
+    idx = inner.get("index", 0)
+    key = (msg_id, idx)
+
+    if et == "content_block_start":
+        bt = (inner.get("content_block") or {}).get("type", "")
+        _partial_active[key] = bt
+        if bt == "thinking":
+            # Open the indented thinking frame; subsequent thinking_deltas
+            # write inside it. Newlines in deltas are converted to "\n   "
+            # so multi-line thinking stays indented under the frame.
+            _emit("\n[thinking] -------------------------------------------\n   ")
+    elif et == "content_block_delta":
+        delta = inner.get("delta") or {}
+        dt = delta.get("type")
+        if dt == "text_delta":
+            _emit(delta.get("text", ""))
+            _partial_streamed.add(key)
+        elif dt == "thinking_delta":
+            text = delta.get("thinking", "")
+            # Indent continuations to match the opening frame.
+            _emit(text.replace("\n", "\n   "))
+            _partial_streamed.add(key)
+        # input_json_delta / signature_delta / citations_delta: ignored.
+    elif et == "content_block_stop":
+        bt = _partial_active.pop(key, None)
+        if bt == "thinking":
+            _emit("\n------------------------------------------------------\n")
+        elif bt == "text":
+            _emit("\n")
+    # message_start / message_delta / message_stop: ignored. The
+    # message-level "assistant" event (with finalized blocks) follows
+    # and _handle_assistant consults _partial_streamed to dedupe.
 
 
 def _handle_user(ev: dict) -> None:
@@ -173,6 +247,7 @@ _HANDLERS = {
     "user": _handle_user,
     "result": _handle_result,
     "system": _handle_system,
+    "stream_event": _handle_stream_event,
 }
 
 
@@ -312,6 +387,18 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--no-partial",
+        dest="partial",
+        action="store_false",
+        help=(
+            "disable token-level streaming. Default: --json mode passes "
+            "--include-partial-messages to claude so prose and thinking "
+            "render character-by-character. Disable for older claude "
+            "versions that don't support the flag, or to debug message-level "
+            "event flow without delta noise. Ignored in text mode."
+        ),
+    )
+    parser.add_argument(
         "--effort",
         choices=["low", "medium", "high", "xhigh", "max"],
         help=(
@@ -406,6 +493,11 @@ def main() -> int:
     if args.json_mode:
         # claude -p --output-format stream-json requires --verbose in 2.1+.
         cmd += ["--output-format", "stream-json", "--verbose"]
+        if args.partial:
+            # Token-level streaming. Without this flag, stream-json emits
+            # one event per complete assistant message — fine for the JSONL
+            # transcript but the live terminal view freezes between turns.
+            cmd += ["--include-partial-messages"]
     if args.effort:
         cmd += ["--effort", args.effort]
 
