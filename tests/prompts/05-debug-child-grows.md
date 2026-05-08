@@ -25,5 +25,3 @@ void Editor::draw_code_panel() {
 ```
 
 I want to understand the root cause before picking a fix — why does the layout loop like this even though the content is static? Then walk me through my options with their tradeoffs.
-
-Save your full reply to `05-debug-child-grows/response.md` (relative to your current directory).

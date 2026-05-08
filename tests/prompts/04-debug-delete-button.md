@@ -27,4 +27,4 @@ void Editor::draw_tab_strip() {
 }
 ```
 
-Diagnose the root cause and show me the fix. Save your full reply (markdown, with the corrected code) to `04-debug-delete-button/response.md` (relative to your current directory).
+Diagnose the root cause and show me the fix.
