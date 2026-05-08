@@ -102,7 +102,7 @@ User intent: a sortable, hover-highlighted, single-select file table with row st
 - No mention of clipper at all (the user explicitly hinted at scale).
 - Per-row `PushID(i)` (index-based) when the entries have stable identity available.
 
-### 04 — debug-delete-button (★ pitfall diagnosis)
+### 04 — debug-delete-button (pitfall diagnosis)
 
 User intent: figure out why every Delete button deletes tab #0.
 
@@ -124,7 +124,7 @@ User intent: figure out why every Delete button deletes tab #0.
 - Missing the secondary mid-iteration-mutation bug.
 - No upstream citation.
 
-### 05 — debug-child-grows (★ user-flagged pain area)
+### 05 — debug-child-grows (user-flagged pain area)
 
 User intent: figure out why a child window grows ~1px per frame even though content doesn't change.
 

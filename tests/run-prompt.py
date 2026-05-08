@@ -21,9 +21,10 @@ What it does:
 - Streams claude's output live; the full raw output is appended to
   `tests/transcripts/<slug>__<UTC>.{txt|jsonl}` (gitignored).
 - In `--json` mode, the raw JSONL stream is pretty-printed for the live view:
-  assistant prose streams inline, thinking blocks shown wrapped under 💭,
-  tool uses as 🔧 [name], tool results as ← [tool_result], system hook noise
-  suppressed. Saves the *raw* JSONL to disk for later grading.
+  assistant prose streams inline, thinking blocks shown wrapped under
+  `[thinking]`, tool uses as `[tool: name]`, tool results as `[tool_result]`,
+  system hook noise suppressed. Saves the *raw* JSONL to disk for later
+  grading.
 
 Honest trade-offs:
 
@@ -80,7 +81,7 @@ def _emit_block(label: str, body: str = "") -> None:
 def _emit_thinking(thinking: str) -> None:
     if not thinking.strip():
         return
-    _emit("\n💭 thinking ─────────────────────────────────────────\n")
+    _emit("\n[thinking] -------------------------------------------\n")
     for paragraph in thinking.split("\n"):
         if not paragraph.strip():
             _emit("\n")
@@ -93,7 +94,7 @@ def _emit_thinking(thinking: str) -> None:
         ) or [""]
         for w in wrapped_lines:
             _emit("   " + w + "\n")
-    _emit("─────────────────────────────────────────────────────\n")
+    _emit("------------------------------------------------------\n")
 
 
 def _handle_assistant(ev: dict) -> None:
@@ -105,11 +106,11 @@ def _handle_assistant(ev: dict) -> None:
             _emit_thinking(block.get("thinking", ""))
         elif bt == "tool_use":
             _emit_block(
-                f"🔧 [{block.get('name', '?')}]",
+                f"[tool: {block.get('name', '?')}]",
                 _summarize(block.get("input", {})),
             )
         elif bt == "tool_result":  # defensive — usually appears under user
-            _emit_block("← [tool_result]", _summarize(block.get("content", "")))
+            _emit_block("[tool_result]", _summarize(block.get("content", "")))
 
 
 def _handle_user(ev: dict) -> None:
@@ -124,7 +125,7 @@ def _handle_user(ev: dict) -> None:
                 else str(c)
                 for c in content
             )
-        _emit_block("← [tool_result]", _summarize(content))
+        _emit_block("[tool_result]", _summarize(content))
 
 
 def _handle_result(ev: dict) -> None:
@@ -142,7 +143,7 @@ def _handle_system(ev: dict) -> None:
     sub = ev.get("subtype", "")
     if sub in SYSTEM_SUPPRESS:
         return
-    _emit_block(f"⚙ [system:{sub or '?'}]")
+    _emit_block(f"[system:{sub or '?'}]")
 
 
 _HANDLERS = {
@@ -168,7 +169,7 @@ def _render_event(line: str) -> None:
         try:
             handler(ev)
         except Exception as exc:  # noqa: BLE001
-            _emit_block(f"⚠ [pretty-stream error in {ev.get('type')}]", str(exc))
+            _emit_block(f"[pretty-stream error in {ev.get('type')}]", str(exc))
 
 
 # ---------------------------------------------------------------------------

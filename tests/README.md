@@ -12,7 +12,7 @@ See [CLAUDE.md](CLAUDE.md) for the test-session contract (what the session is al
 | 02 | [tools-panel](prompts/02-tools-panel.md) | bootstrap | basic widget submission (sliders, checkbox, color edit); `std::print` adoption |
 | 03 | [sortable-file-table](prompts/03-sortable-file-table.md) | bootstrap | `BeginTable` + sorting + row spanning; `ImGuiListClipper` mention |
 | 04 | [debug-delete-button](prompts/04-debug-delete-button.md) | diagnostic | ID-stack collision routing → `references/id-stack.md` |
-| 05 | [debug-child-grows](prompts/05-debug-child-grows.md) | diagnostic | Layout/sizing feedback-loop routing → `references/layout-and-sizing.md` (★ user-flagged pain area) |
+| 05 | [debug-child-grows](prompts/05-debug-child-grows.md) | diagnostic | Layout/sizing feedback-loop routing -> `references/layout-and-sizing.md` (user-flagged pain area) |
 | 06 | [debug-popup-closes](prompts/06-debug-popup-closes.md) | diagnostic | OpenPopup-every-frame routing → `references/modals-and-popups.md` |
 | 07 | [docking-editor-layout](prompts/07-docking-editor-layout.md) | bootstrap (advanced) | DockBuilder programmatic layout + multi-viewport |
 | 08 | [knob-widget](prompts/08-knob-widget.md) | custom-widget | `ItemAdd` / `ButtonBehavior` / `DrawList` routing → `references/custom-widgets.md` |
@@ -37,7 +37,7 @@ What it does:
 - Echoes the prompt up front so the transcript is self-contained.
 - Sets `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` so the run doesn't pollute `~/.claude/history.jsonl` or the per-project transcript dir.
 - Streams `claude -p`'s output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored, so you only commit transcripts intentionally (e.g. as evidence of a memorable failure).
-- In `--json` mode, pretty-prints events to the terminal (assistant prose streams inline, thinking blocks shown wrapped under 💭, tool uses as 🔧 [name], tool results as ←, system hook noise suppressed) while writing the *raw* JSONL stream to disk for later grading.
+- In `--json` mode, pretty-prints events to the terminal (assistant prose streams inline, thinking blocks shown wrapped under `[thinking]`, tool uses as `[tool: name]`, tool results as `[tool_result]`, system hook noise suppressed) while writing the *raw* JSONL stream to disk for later grading.
 
 Output paths in the prompts are **relative to your cwd (`tests/`)**. A prompt that says `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` on disk.
 
