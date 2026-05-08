@@ -72,11 +72,17 @@ The wrapper is just a thin orchestration layer over the above plus the JSON pret
 
 There's no env var that redirects only history while keeping plugins/settings in `~/.claude/`. Skip-and-capture-locally is the cleanest compromise.
 
-### Plugin install scope (heads-up)
+### Plugin loading: per-session via `--plugin-dir`
 
-For test sessions to see `imgui-cpp` while running from this worktree, the plugin must be installed with **user scope**, not local scope. Local scope keys on `git rev-parse --show-toplevel` of the cwd, and a worktree's toplevel is the worktree path — not the original repo — so a local-scope install is silently invisible from worktrees of the same project. (Tracked upstream as Linear MAIN-19.)
+`run-prompt.py` passes `--plugin-dir <plugin-source-root>` to `claude -p`, which loads the plugin **for that single session only** from the live source files. Auto-detected by walking up from the script to find the directory containing `.claude-plugin/`.
 
-User-scope means the plugin auto-activates in **every** Claude Code session on this machine, including unrelated ImGui projects. That's deliberate during this dev cycle, but it's the wrong long-term state — an in-flight version of the plugin shouldn't be silently routing in your unrelated work. **At the end of the iteration, revert to local scope or uninstall:** see Linear MAIN-20 for the explicit checklist and the `/plugin uninstall + /plugin install` sequence.
+Why this is the right call for tests:
+
+- **Always tests the freshest source.** No global install to keep in sync with the working tree, no cache-staleness ("which commit did I install?" vs "what's on disk now?"), no need to reinstall after every edit.
+- **No global state to clean up.** When the test exits, nothing is left in `~/.claude/plugins/` for the test. Whatever globally-installed copy you have for normal use is untouched.
+- **Sidesteps the worktree footgun.** The local-scope-vs-worktree issue (Linear MAIN-19) doesn't apply because we're not relying on installed-plugin scope at all. The user-scope-during-dev workaround (Linear MAIN-20) similarly doesn't apply for these test runs — though you may still want a globally-installed copy for everyday work outside the test harness.
+
+If you DO have a globally-installed copy of `imgui-cpp` AND run a test, the per-session `--plugin-dir` version takes precedence for that one run. Global state is unchanged.
 
 ## What success looks like
 

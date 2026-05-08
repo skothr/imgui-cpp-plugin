@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """run-prompt.py — run a tests/prompts/<NN>-<slug>.md prompt as a non-interactive
-Claude Code session, stream the output live to your terminal, save a
-transcript, and keep test runs out of `~/.claude/`.
+Claude Code session, stream output live to terminal, save a transcript, and
+ALWAYS test against the latest plugin source (no install/uninstall dance).
 
 Usage:
     ./run-prompt.py <slug>           # text output (default)
@@ -11,9 +11,15 @@ Usage:
 
 What it does:
 
+- Auto-discovers the plugin source root by walking up from this script
+  looking for the directory containing `.claude-plugin/`. Passes that path
+  to `claude --plugin-dir`, which loads the plugin for THIS SESSION ONLY
+  from the live source files. No global install needed; no caching, no
+  cwd-vs-projectPath worries (Linear MAIN-19), no leftover state to clean
+  up afterward (Linear MAIN-20). Every run picks up the freshest source.
 - Reads `tests/prompts/<slug>.md` and feeds it to `claude -p` as a one-shot
-  non-interactive session. cwd of the spawned session is `tests/`, so it
-  picks up `tests/CLAUDE.md` and writes any output subdirs there.
+  non-interactive session. cwd is `tests/` so the session reads
+  `tests/CLAUDE.md` and writes its output subdirs there.
 - Sets `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` so the run does not pollute
   `~/.claude/history.jsonl` or the per-project transcript dir.
 - Echoes the prompt up front (to terminal + transcript) so the saved file is
@@ -34,6 +40,9 @@ Honest trade-offs:
   only recording.
 - xhigh effort + Opus may take 30-60s before any visible output streams in
   text mode (thinking events aren't surfaced). `--json` shows thinking live.
+- `--plugin-dir` loads the plugin per-session only. If you ALSO have a
+  globally-installed copy of the same plugin, the per-session one wins for
+  this run, but the global state is unchanged.
 """
 
 from __future__ import annotations
@@ -186,6 +195,25 @@ def _list_available_prompts(tests_dir: Path) -> None:
         print(f"  {p.stem}", file=sys.stderr)
 
 
+def _find_plugin_root(start: Path) -> Path:
+    """Walk up from `start` looking for the dir that contains `.claude-plugin/`.
+
+    For tests/run-prompt.py, this resolves to the plugin's source root —
+    typically the worktree root if we're in a worktree, or the repo root
+    otherwise.
+    """
+    current = start.resolve()
+    while True:
+        if (current / ".claude-plugin").is_dir():
+            return current
+        if current == current.parent:
+            raise RuntimeError(
+                "couldn't locate .claude-plugin/ above run-prompt.py — "
+                "is this script inside a Claude Code plugin tree?"
+            )
+        current = current.parent
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -206,7 +234,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # tests/run-prompt.py → tests/
+    # tests/run-prompt.py -> tests/
     tests_dir = Path(__file__).resolve().parent
     prompt_file = tests_dir / "prompts" / f"{args.prompt}.md"
     if not prompt_file.is_file():
@@ -219,6 +247,12 @@ def main() -> int:
             "claude binary not found on PATH — install Claude Code or check $PATH",
             file=sys.stderr,
         )
+        return 1
+
+    try:
+        plugin_root = _find_plugin_root(tests_dir)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
         return 1
 
     transcripts_dir = tests_dir / "transcripts"
@@ -239,15 +273,23 @@ def main() -> int:
     out_path.write_text(header)
 
     print(
-        "· (thinking phase may run 30-60s before any prose streams; "
-        "--json shows live thinking + tool use events)",
+        f"[..] loading plugin from source: {plugin_root}",
+        file=sys.stderr,
+    )
+    print(
+        "[..] thinking phase may run 30-60s before any prose streams; "
+        "--json shows live thinking + tool use events",
         file=sys.stderr,
     )
 
     env = os.environ.copy()
     env["CLAUDE_CODE_SKIP_PROMPT_HISTORY"] = "1"
 
-    cmd = ["stdbuf", "-oL", "claude", "-p", prompt_body]
+    cmd = [
+        "stdbuf", "-oL",
+        "claude", "-p", prompt_body,
+        "--plugin-dir", str(plugin_root),
+    ]
     if args.json_mode:
         # claude -p --output-format stream-json requires --verbose in 2.1+.
         cmd += ["--output-format", "stream-json", "--verbose"]
