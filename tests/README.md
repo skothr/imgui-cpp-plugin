@@ -2,7 +2,7 @@
 
 Manual test harness for the `imgui-cpp` Claude Code plugin. Each file under `prompts/` is a self-contained user message you can paste as the first turn of a fresh Claude Code session opened inside this directory. Each prompt directs the session to produce its output under `tests/<NN>-<slug>/`.
 
-See [CLAUDE.md](CLAUDE.md) for the test-session contract (what counts as a passing test, what the session is allowed to touch, what to flag when the skill misbehaves).
+See [CLAUDE.md](CLAUDE.md) for the test-session contract (what the session is allowed to touch, what to flag when the skill misbehaves) and [prompts/README.md](prompts/README.md) for **what each prompt is actually testing** — the skill conventions we expect to see applied unprompted, the references the skill should route to, and the anti-patterns that count as a failure even if the produced code "works."
 
 ## Prompts
 

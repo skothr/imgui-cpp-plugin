@@ -13,6 +13,4 @@ if (ImGui::BeginPopupModal("confirm-delete", nullptr, ImGuiWindowFlags_AlwaysAut
 }
 ```
 
-What's wrong, why does it manifest as a one-frame flash, and what's the canonical fix? Show me the corrected code using whatever modal-popup idioms the skill recommends.
-
-Save your reply (markdown, including the corrected code block) to `tests/06-debug-popup-closes/response.md`.
+What's wrong, why does it manifest as a one-frame flash, and what's the fix? Save your reply (markdown, including the corrected code block) to `tests/06-debug-popup-closes/response.md`.
