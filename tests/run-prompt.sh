@@ -71,15 +71,24 @@ out="transcripts/${PROMPT_NAME}__${ts}.${EXT}"
 
 export CLAUDE_CODE_SKIP_PROMPT_HISTORY=1
 
-# claude -p streams output as it generates. tee duplicates to the transcript
-# file while showing it live. 2>&1 captures any stderr (errors, warnings) so
-# the saved transcript reflects exactly what you saw.
+# Two streaming gotchas this guards against:
+#   1. Pipe buffering — when claude -p's stdout is a pipe (we're teeing),
+#      libc switches to full-buffer mode, so tee sees nothing until claude
+#      finishes and flushes. stdbuf -oL forces line-buffering so each line
+#      arrives at tee as it's produced.
+#   2. Thinking mode silence — with CLAUDE_EFFORT=xhigh (or any effort > 0),
+#      the model can think for 30-60+ seconds before any visible text
+#      streams. In text mode (default), thinking events aren't shown, so
+#      the terminal looks dead. If you want to SEE the model thinking and
+#      tool-using as it happens, use --json instead.
+printf '· (thinking phase may run 30-60s before any prose streams; --json shows live thinking + tool use events)\n' >&2
+
 if [[ "${FORMAT}" == "stream-json" ]]; then
-  claude -p "$(cat "${PROMPT_FILE}")" --output-format stream-json 2>&1 \
-    | tee -a "${out}"
+  stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" --output-format stream-json 2>&1 \
+    | stdbuf -oL tee -a "${out}"
 else
-  claude -p "$(cat "${PROMPT_FILE}")" 2>&1 \
-    | tee -a "${out}"
+  stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" 2>&1 \
+    | stdbuf -oL tee -a "${out}"
 fi
 
 printf '\n· transcript saved to %s\n' "${out}" >&2
