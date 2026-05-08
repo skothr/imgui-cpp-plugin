@@ -84,7 +84,9 @@ export CLAUDE_CODE_SKIP_PROMPT_HISTORY=1
 printf '· (thinking phase may run 30-60s before any prose streams; --json shows live thinking + tool use events)\n' >&2
 
 if [[ "${FORMAT}" == "stream-json" ]]; then
-  stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" --output-format stream-json 2>&1 \
+  # In Claude Code 2.1+, `claude -p --output-format stream-json` requires --verbose.
+  stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" \
+    --output-format stream-json --verbose 2>&1 \
     | stdbuf -oL tee -a "${out}"
 else
   stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" 2>&1 \
