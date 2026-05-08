@@ -46,7 +46,7 @@ if [[ ! -d "${ROOT}" ]]; then
 fi
 ROOT="$(cd "${ROOT}" && pwd)"
 
-log() { [[ ${QUIET} -eq 1 ]] || printf '· %s\n' "$*" >&2; }
+log() { [[ ${QUIET} -eq 1 ]] || printf '[..] %s\n' "$*" >&2; }
 
 # --- search roots, ordered by likelihood ---
 # Each entry is a path relative to ${ROOT}. The presence of imgui.h there is checked.
@@ -165,7 +165,7 @@ else
     exit 2
   fi
 
-  printf '\n\033[32m✓\033[0m found %d Dear ImGui cop%s under %s:\n' \
+  printf '\n\033[32m[ok]\033[0m found %d Dear ImGui cop%s under %s:\n' \
     "${#FOUND_FILES[@]}" "$([[ ${#FOUND_FILES[@]} -eq 1 ]] && echo y || echo ies)" "${ROOT}"
   for f in "${FOUND_FILES[@]}"; do
     IFS='|' read -r ver vernum dock <<<"$(parse_imgui_h "${f}")"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-imgui-cpp",
+  "name": "imgui-cpp-local",
   "description": "A single-plugin marketplace publishing the imgui-cpp Dear ImGui development plugin.",
   "owner": {
     "name": "Michael Lannum",

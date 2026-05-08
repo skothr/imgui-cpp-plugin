@@ -13,8 +13,10 @@ The plugin ships:
 
 ```text
 /plugin marketplace add <github-user>/claude-imgui-cpp
-/plugin install imgui-cpp@<github-user>
+/plugin install imgui-cpp@imgui-cpp-local
 ```
+
+The marketplace is named `imgui-cpp-local`, not `claude-imgui-cpp`, to avoid a Claude Code bug (see [issue #56043](https://github.com/anthropics/claude-code/issues/56043)) where certain marketplace-name substring patterns trigger a misleading `Failed to install: source type your Claude Code version does not support` error at install time. If you fork this plugin, keep the marketplace name something *without* a `claude-` prefix.
 
 ## What it knows
 

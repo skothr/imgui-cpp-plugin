@@ -20,7 +20,7 @@ Each row below is one well-known ImGui pitfall. Follow the doc link for code rep
 | Invisible / corrupted widgets after a popup closes | Calling `EndPopup()` when `BeginPopup()` returned false. For all Begin* APIs *except* Begin/BeginChild, you only call End* when the corresponding Begin* returned true. Use `ImScoped::Popup`. | [modals-and-popups.md](modals-and-popups.md) |
 | "My table doesn't render" | `EndTable()` skipped because `BeginTable()` returned false (e.g. ScrollY without a sized outer area). Use `ImScoped::Table` and read the table's outer-size requirements. | [tables.md](tables.md) |
 
-## Sizing & layout (★ user-flagged pain area)
+## Sizing and layout
 
 | Symptom | Root cause | Deep dive |
 |---|---|---|
@@ -43,7 +43,7 @@ Each row below is one well-known ImGui pitfall. Follow the doc link for code rep
 
 | Symptom | Root cause | Deep dive |
 |---|---|---|
-| Tiny squares (`☐`) instead of glyphs | Font atlas not built or texture not bound. In v1.92 the atlas builds automatically on `NewFrame`; if you've called the legacy explicit `CreateFontsTexture()` with a v1.92-aware backend, you may double-build. | [styling-fonts-dpi.md](styling-fonts-dpi.md), [backends/opengl3-glfw.md](backends/opengl3-glfw.md) |
+| Tiny squares instead of glyphs (the missing-glyph tofu boxes) | Font atlas not built or texture not bound. In v1.92 the atlas builds automatically on `NewFrame`; if you've called the legacy explicit `CreateFontsTexture()` with a v1.92-aware backend, you may double-build. | [styling-fonts-dpi.md](styling-fonts-dpi.md), [backends/opengl3-glfw.md](backends/opengl3-glfw.md) |
 | Blurry / fuzzy text on Retina or 4K | DPI scaling not applied before backend init. Set `style.FontScaleDpi` and call `style.ScaleAllSizes` BEFORE `ImGui_Impl*_Init`. | [styling-fonts-dpi.md](styling-fonts-dpi.md) |
 | Fonts vanish after switching monitors | Atlas not rebuilt for the new DPI. Set `io.ConfigDpiScaleFonts = true` (v1.92, dynamic atlas). | [styling-fonts-dpi.md](styling-fonts-dpi.md) |
 | Icon font glyphs show as `?` | `MergeMode` not set on the icon `ImFontConfig`, or merged glyph ranges don't cover the icons' codepoints. | [styling-fonts-dpi.md](styling-fonts-dpi.md) |

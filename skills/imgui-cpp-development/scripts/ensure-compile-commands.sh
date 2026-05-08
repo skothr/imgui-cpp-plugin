@@ -29,7 +29,7 @@ ROOT="$(cd "${ROOT}" && pwd)"
 # --- already present? ---
 for cc in "${ROOT}/compile_commands.json" "${ROOT}/build/compile_commands.json" "${ROOT}/build-debug/compile_commands.json"; do
   if [[ -f "${cc}" ]]; then
-    printf '\033[32m✓\033[0m compile_commands.json present: %s\n' "${cc}"
+    printf '\033[32m[ok]\033[0m compile_commands.json present: %s\n' "${cc}"
     # Soft check: clangd often wants the file at the project root, even if it's also in build/.
     # Suggest a symlink if only the build copy exists.
     if [[ "${cc}" != "${ROOT}/compile_commands.json" && ! -e "${ROOT}/compile_commands.json" ]]; then

@@ -30,7 +30,7 @@ Frame N+2: BeginPopup("X") returns true → submit body → EndPopup
 ...        until CloseCurrentPopup() or user clicks outside (non-modal) or hits Esc
 ```
 
-## ★ Why "OpenPopup every frame" is wrong
+## Why "OpenPopup every frame" is wrong
 
 This is the most common popup bug, and it's a category error: treating `OpenPopup` as if it controlled visibility (like a `bool show_popup`) rather than as an event.
 

@@ -85,7 +85,7 @@ So:
 
 If both axes auto-resize, there's no axis along which content can overflow into a scrollbar — the child just grows. Combine that with content whose size depends on the child (wrapping text, item-per-line lists), and you get a feedback loop.
 
-## ★ The canonical "child frame keeps growing every frame" pattern
+## The canonical "child frame keeps growing every frame" pattern
 
 This is the user-flagged pain area. The reproducer:
 

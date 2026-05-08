@@ -132,7 +132,7 @@ You no longer need to:
 
 ---
 
-## 6. The v1.92 font-system rework (★)
+## 6. The v1.92 font-system rework (the highest-impact change in this release)
 
 This is the section to read carefully if you're updating from a 1.91 or earlier project, or copying snippets from old tutorials.
 

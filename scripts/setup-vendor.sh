@@ -31,10 +31,10 @@ PINS=(
 
 mkdir -p "${VENDOR_DIR}/notes/issues"
 
-ok()    { printf '\033[32m✓\033[0m %s\n' "$*"; }
-info()  { printf '\033[36m·\033[0m %s\n' "$*"; }
+ok()    { printf '\033[32m[ok]\033[0m %s\n' "$*"; }
+info()  { printf '\033[36m[..]\033[0m %s\n' "$*"; }
 warn()  { printf '\033[33m!\033[0m %s\n' "$*" >&2; }
-fail()  { printf '\033[31m✗\033[0m %s\n' "$*" >&2; }
+fail()  { printf '\033[31m[fail]\033[0m %s\n' "$*" >&2; }
 
 clone_or_update() {
   local subdir="$1" url="$2" ref="$3" desc="$4"

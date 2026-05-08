@@ -17,7 +17,7 @@ commands/              slash commands that route through the skill
 hooks/                 post-edit hooks (non-blocking, report-only)
 docs/superpowers/      design specs and implementation plans for our brainstorming/dev workflow
 evals/                 skill-creator eval fixtures (test prompts + assertions)
-vendor/                ★ .gitignored ★ — upstream sources we research against (recreate via scripts/setup-vendor.sh)
+vendor/                .gitignored — upstream sources we research against (recreate via scripts/setup-vendor.sh)
 scripts/               dev-time scripts (setup-vendor.sh, etc.)
 ```
 
@@ -55,6 +55,28 @@ The eval loop lives in `evals/` (test prompts + assertions). New significant con
 - **Build-system support requests** (Meson/Bazel/Premake/Makefile) → Linear feature requests, team `main`. Already filed: MAIN-8…MAIN-11.
 - **Newly discovered ImGui pitfalls** → research note in `vendor/notes/issues/<topic>.md` (gitignored), then promote to `references/pitfalls-catalog.md` + the relevant deep-dive doc when validated.
 - **Friction with this plugin's tooling itself** (eval flow, vendor setup, hook noise) → Linear `friction` label.
+
+### Never use emoji characters
+
+DO NOT EVER use emojis, unless it's obvious that emojis are SPECIFICALLY called for, as in it is EXPLICITLY asked for from the user (e.g. the user uses emoji characters in his instructions, or the project is OBVIOUSLY using them already for some reason. This will only EVER be applicable to projects where emoji characters need to be supported or a project the user didn't write. **Emojis are weird to see in a terminal, and are unprofessional when used in markdown/README.md, or really any other text.**
+
+This applies to: code, scripts, prompts, READMEs, commit messages, CLAUDE.md edits, memory entries, Linear issues, and anything else with text. Stars (★), checkmarks (✓), warning signs (⚠), gears (⚙), etc. all count as emoji-grade decoration and should not appear.
+
+### Search vague tool errors early; don't bisect for hours
+
+When a Claude Code (or any) error message:
+
+- Tells the user to do something that obviously isn't the cause (e.g., "Update Claude Code" when a structurally-similar plugin works in the same session), OR
+- Is generic when the failure looks specific, OR
+- Survives 1–2 reasonable local-config bisect attempts
+
+…stop poking and **web-search the exact error text plus the tool name**. Most user-hostile error strings map to known upstream bugs. The cost of an extra search is trivial; the cost of three more bisect rounds isn't.
+
+For Claude Code specifically, prefer searching `github.com/anthropics/claude-code/issues`. We hit `Failed to install: This plugin uses a source type your Claude Code version does not support.` early in this repo's bootstrap and bisected for ~2 hours through manifest fields, hooks layout, directory structure, etc. — the actual cause was a substring collision in Claude Code's marketplace-name validator (sibling of [issue #56043](https://github.com/anthropics/claude-code/issues/56043)). The marketplace was named `claude-imgui-cpp`; renaming to `imgui-cpp-local` resolved it instantly. One search of the error string would have surfaced the matching report immediately.
+
+### Plugin install caveat — marketplace name avoids `claude-` prefix
+
+This repo's marketplace is named `imgui-cpp-local` (not `claude-imgui-cpp`) because Claude Code's marketplace-name validator silently rejects certain substring patterns at install time with a misleading "source type not supported" error. The `claude-` prefix appears to be one of those colliding patterns. If you rename the marketplace, test `/plugin install <plugin>@<new-name>` from a fresh session before assuming the new name works.
 
 ### Tool discipline (inherited from the user's global CLAUDE.md, summarized here)
 
