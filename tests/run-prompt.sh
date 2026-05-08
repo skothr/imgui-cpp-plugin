@@ -85,9 +85,14 @@ printf '· (thinking phase may run 30-60s before any prose streams; --json shows
 
 if [[ "${FORMAT}" == "stream-json" ]]; then
   # In Claude Code 2.1+, `claude -p --output-format stream-json` requires --verbose.
+  # The full raw JSONL goes to the transcript file; stdout passes through
+  # pretty-stream.py to render a human-readable view (assistant prose streams
+  # inline, thinking shown wrapped with 💭, tool uses as 🔧 [name], system
+  # hook noise suppressed).
   stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" \
     --output-format stream-json --verbose 2>&1 \
-    | stdbuf -oL tee -a "${out}"
+    | stdbuf -oL tee -a "${out}" \
+    | python3 -u "${SCRIPT_DIR}/scripts/pretty-stream.py"
 else
   stdbuf -oL claude -p "$(cat "${PROMPT_FILE}")" 2>&1 \
     | stdbuf -oL tee -a "${out}"
