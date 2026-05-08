@@ -68,6 +68,12 @@ CLAUDE_CODE_SKIP_PROMPT_HISTORY=1 claude -p "$(cat prompts/<NN>-<slug>.md)" \
 
 There's no env var that redirects only history while keeping plugins/settings in `~/.claude/`. Skip-and-capture-locally is the cleanest compromise.
 
+### Plugin install scope (heads-up)
+
+For test sessions to see `imgui-cpp` while running from this worktree, the plugin must be installed with **user scope**, not local scope. Local scope keys on `git rev-parse --show-toplevel` of the cwd, and a worktree's toplevel is the worktree path — not the original repo — so a local-scope install is silently invisible from worktrees of the same project. (Tracked upstream as Linear MAIN-19.)
+
+User-scope means the plugin auto-activates in **every** Claude Code session on this machine, including unrelated ImGui projects. That's deliberate during this dev cycle, but it's the wrong long-term state — an in-flight version of the plugin shouldn't be silently routing in your unrelated work. **At the end of the iteration, revert to local scope or uninstall:** see Linear MAIN-20 for the explicit checklist and the `/plugin uninstall + /plugin install` sequence.
+
 ## What success looks like
 
 - **Bootstrap prompts**: session produces a project that *would* compile (CMake fetches ImGui v1.92.7-docking + GLFW 3.4, `main.cpp` opens a GLFW window with the requested ImGui surface, RAII guards in use).
