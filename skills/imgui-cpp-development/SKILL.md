@@ -39,7 +39,7 @@ Apply these unless the user has explicitly opted out or the surrounding code fol
 
 3. **`std::expected<T, GfxError>` at API boundaries** for fallible resource ops (texture load, shader compile, swapchain init). ImGui itself doesn't use exceptions; mirror that in your wrappers.
 
-4. **`std::print` / `std::println`** for diagnostics, not `printf`. ImGui's own log paths predate `<print>` but your application code shouldn't.
+4. **Diagnostics: `std::fprintf`/`std::printf` is the safe default; promote to `std::print`/`std::println` only when the toolchain supports it.** `<print>` and the `<format>` it builds on require **libstdc++-14 or libc++-18+** AND a compiler whose ranges-constraint checking is compatible with that stdlib's `<bits/unicode.h>`. clang 17 against libstdc++-14 currently fails to compile `<format>` (LLVM-61763 family). clang 17 against libstdc++-11/12 (Ubuntu 22.04 default) lacks `<print>` entirely. **Default the template / generated scaffolds to `<cstdio>` `std::fprintf` / `std::printf` so the bootstrap builds on every reasonable Linux + clang combination from clang 14 onward.** printf format strings are type-checked at compile time via `__attribute__((format))`, cost nothing in readability for diagnostics, and ship with C++98. Recommend `std::println` for the user's own code only after confirming their stdlib + compiler combination supports it; mention the deployment cost.
 
 5. **Strict ID-stack hygiene.** `PushID(ptr)` for objects, `PushID(int)` for stable indices, `"##invisible-suffix"` to disambiguate same-label widgets without changing display, `"###override"` to keep state across label changes. Never rely on auto-generated labels alone in loops. See [references/id-stack.md](references/id-stack.md).
 

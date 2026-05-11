@@ -20,12 +20,22 @@
 #include <GLFW/glfw3.h>
 
 #include <cstdio>
-#include <print>
+
+// NOTE on diagnostics: we use <cstdio> std::fprintf / std::printf rather
+// than C++23 <print>/std::println because <print> requires libstdc++-14
+// or libc++-18+, AND a compiler whose ranges-constraint checking is
+// compatible with the chosen stdlib. clang 17 against libstdc++-14
+// currently fails inside <bits/unicode.h> (LLVM-61763 family). std::fprintf
+// is type-checked at compile time via __attribute__((format)) on every
+// modern compiler, works on every libstdc++ from C++98 forward, and costs
+// nothing in readability for diagnostics. Switch to std::println in your
+// own code if your toolchain supports it; the skill keeps templates
+// printf-based to keep the bootstrap working everywhere.
 
 namespace {
 
 void glfw_error_callback(int error, const char* description) {
-    std::println(stderr, "GLFW Error {}: {}", error, description);
+    std::fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
 // Pick a GLSL version per platform. The string is passed to ImGui_ImplOpenGL3_Init;
