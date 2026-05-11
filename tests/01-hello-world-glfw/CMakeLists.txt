@@ -67,7 +67,7 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
-target_include_directories(imgui PUBLIC
+target_include_directories(imgui SYSTEM PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
@@ -111,6 +111,6 @@ endif()
 #     ${imgui_test_engine_SOURCE_DIR}/imgui_test_engine/imgui_te_perftool.cpp
 #     ${imgui_test_engine_SOURCE_DIR}/imgui_test_engine/imgui_te_ui.cpp
 #     ${imgui_test_engine_SOURCE_DIR}/imgui_test_engine/imgui_te_utils.cpp)
-# target_include_directories(imgui_te PUBLIC ${imgui_test_engine_SOURCE_DIR})
+# target_include_directories(imgui_te SYSTEM PUBLIC ${imgui_test_engine_SOURCE_DIR})
 # target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_TEST_ENGINE)
 # target_link_libraries(imgui_te PUBLIC imgui)
