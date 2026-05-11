@@ -4,10 +4,12 @@ Claude Code session, stream output live to terminal, save a transcript, and
 ALWAYS test against the latest plugin source (no install/uninstall dance).
 
 Usage:
-    ./run-prompt.py <slug>           # text output (default)
-    ./run-prompt.py <slug> --json    # stream-json with pretty live view
-    ./run-prompt.py 04-debug-delete-button
-    ./run-prompt.py 04-debug-delete-button --json
+    ./run-prompt.py <ref>                  # text output (default)
+    ./run-prompt.py <ref> --json           # stream-json with pretty live view
+    ./run-prompt.py 04                     # numeric ref — resolves to "04-...".md
+    ./run-prompt.py 4                      # leading zero optional
+    ./run-prompt.py 04-debug-delete-button # full slug also works
+    ./run-prompt.py 05 06 07 --json        # multiple prompts, run in order
 
 What it does:
 
@@ -93,6 +95,14 @@ def _should_keep_in_jsonl(ev: dict) -> bool:
 #                      content the user already saw stream past.
 _partial_active: dict[tuple[str, int], str] = {}
 _partial_streamed: set[tuple[str, int]] = set()
+
+
+def _reset_partial_state() -> None:
+    """Clear cross-run state. Different prompts get different message ids
+    so the dedupe set wouldn't *practically* collide, but resetting is
+    defensive and keeps memory bounded across long multi-prompt runs."""
+    _partial_active.clear()
+    _partial_streamed.clear()
 
 
 def _summarize(value, max_len: int = SUMMARY_MAX) -> str:
@@ -301,10 +311,52 @@ def _list_available_prompts(tests_dir: Path, *, to_stdout: bool = False) -> None
             print(f"{prefix}{p.stem}", file=out)
 
 
-def _show_prompt(tests_dir: Path, slug: str) -> int:
-    f = tests_dir / "prompts" / f"{slug}.md"
-    if not f.is_file():
-        print(f"no such prompt: {slug}", file=sys.stderr)
+def _resolve_prompt(tests_dir: Path, ref: str) -> Path:
+    """Resolve a user-supplied prompt reference to a prompts/<slug>.md file.
+
+    Accepts three forms:
+      - exact slug:   "04-debug-delete-button"
+      - with .md:     "04-debug-delete-button.md"
+      - numeric:      "04" or "4" (zero-padded to two digits, then matched
+                                   against the "NN-" prefix of available
+                                   prompt stems)
+
+    Raises FileNotFoundError if nothing matches, ValueError if a numeric
+    ref is ambiguous (e.g., "1" matching both "1-foo" and "10-bar" — not
+    expected with the current 2-digit convention, but handled defensively).
+    """
+    prompts_dir = tests_dir / "prompts"
+    available = sorted(
+        p for p in prompts_dir.glob("*.md") if p.name != "README.md"
+    )
+    stems = {p.stem: p for p in available}
+
+    if ref.endswith(".md"):
+        ref = ref[:-3]
+
+    if ref in stems:
+        return stems[ref]
+
+    if ref.isdigit():
+        padded = ref.zfill(2)
+        matches = [p for stem, p in stems.items() if stem.startswith(padded + "-")]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise FileNotFoundError(f"no prompt with prefix '{padded}-'")
+        raise ValueError(
+            f"ambiguous numeric ref '{ref}'; matches: "
+            f"{sorted(m.stem for m in matches)}"
+        )
+
+    raise FileNotFoundError(f"no prompt matching '{ref}'")
+
+
+def _show_prompt(tests_dir: Path, ref: str) -> int:
+    try:
+        f = _resolve_prompt(tests_dir, ref)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         _list_available_prompts(tests_dir)
         return 1
     sys.stdout.write(f.read_text())
@@ -313,7 +365,15 @@ def _show_prompt(tests_dir: Path, slug: str) -> int:
     return 0
 
 
-def _latest_transcript(tests_dir: Path, slug: str) -> int:
+def _latest_transcript(tests_dir: Path, ref: str) -> int:
+    # Reuse the resolver so numeric refs work here too.
+    try:
+        prompt_file = _resolve_prompt(tests_dir, ref)
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        _list_available_prompts(tests_dir)
+        return 1
+    slug = prompt_file.stem
     candidates = sorted(
         (tests_dir / "transcripts").glob(f"{slug}__*"),
         key=lambda p: p.stat().st_mtime,
@@ -373,9 +433,15 @@ def main() -> int:
     )
 
     parser.add_argument(
-        "prompt",
-        nargs="?",
-        help="prompt slug to run, e.g. 04-debug-delete-button",
+        "prompts",
+        nargs="*",
+        metavar="REF",
+        help=(
+            "prompt(s) to run. Accepts the full slug "
+            "('04-debug-delete-button'), a numeric ref ('04' or '4'), or a "
+            "slug with '.md'. Pass multiple to run a batch in order; each "
+            "produces its own transcript file."
+        ),
     )
     parser.add_argument(
         "--json",
@@ -441,17 +507,11 @@ def main() -> int:
     if args.latest:
         return _latest_transcript(tests_dir, args.latest)
 
-    # From here on, we're running a prompt — slug is required.
-    if not args.prompt:
-        parser.error("prompt slug required (or use --list / --show / --latest)")
+    # From here on, we're running prompt(s) — at least one ref required.
+    if not args.prompts:
+        parser.error("prompt ref required (or use --list / --show / --latest)")
 
-    prompt_file = tests_dir / "prompts" / f"{args.prompt}.md"
-    if not prompt_file.is_file():
-        print(f"no such prompt: {prompt_file}", file=sys.stderr)
-        _list_available_prompts(tests_dir)
-        return 1
-
-    # Validate claude binary unless we're only doing a dry-run.
+    # Validate claude binary once unless we're only doing a dry-run.
     if not args.dry_run and shutil.which("claude") is None:
         print(
             "claude binary not found on PATH — install Claude Code or check $PATH",
@@ -459,6 +519,7 @@ def main() -> int:
         )
         return 1
 
+    # Resolve plugin root once; all prompts share it.
     if args.plugin_dir:
         plugin_root = Path(args.plugin_dir).expanduser().resolve()
         if not (plugin_root / ".claude-plugin").is_dir():
@@ -474,6 +535,42 @@ def main() -> int:
             print(str(exc), file=sys.stderr)
             return 1
 
+    # Resolve every ref up front so a typo on prompt #3 fails before we
+    # spend three minutes running prompts #1 and #2.
+    resolved: list[Path] = []
+    for ref in args.prompts:
+        try:
+            resolved.append(_resolve_prompt(tests_dir, ref))
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"error resolving '{ref}': {exc}", file=sys.stderr)
+            _list_available_prompts(tests_dir)
+            return 1
+
+    total = len(resolved)
+    worst_rc = 0
+    for idx, prompt_file in enumerate(resolved, start=1):
+        if total > 1:
+            banner = f"\n========== [{idx}/{total}] {prompt_file.stem} ==========\n"
+            sys.stderr.write(banner)
+            sys.stderr.flush()
+        rc = _run_one(args, prompt_file, plugin_root, tests_dir)
+        if rc != 0 and worst_rc == 0:
+            worst_rc = rc
+        # Even on non-zero, continue to the next prompt. The user asked for
+        # a batch; one failure doesn't invalidate the others' transcripts.
+
+    if total > 1:
+        summary = f"\n========== batch done: {total} prompt(s), worst exit {worst_rc} ==========\n"
+        sys.stderr.write(summary)
+    return worst_rc
+
+
+def _run_one(args, prompt_file: Path, plugin_root: Path, tests_dir: Path) -> int:
+    """Run a single prompt. Extracted from main() so the batch loop is clean.
+
+    Returns the claude subprocess's exit code (0 on success), or 0 on --dry-run.
+    """
+    slug = prompt_file.stem
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     ext = "jsonl" if args.json_mode else "txt"
 
@@ -481,7 +578,7 @@ def main() -> int:
     if args.capture:
         transcripts_dir = tests_dir / "transcripts"
         transcripts_dir.mkdir(exist_ok=True)
-        out_path = transcripts_dir / f"{args.prompt}__{ts}.{ext}"
+        out_path = transcripts_dir / f"{slug}__{ts}.{ext}"
 
     prompt_body = prompt_file.read_text()
 
@@ -507,8 +604,6 @@ def main() -> int:
         print("would run:", file=sys.stderr)
         print("  cwd: " + str(tests_dir), file=sys.stderr)
         print("  env: CLAUDE_CODE_SKIP_PROMPT_HISTORY=1", file=sys.stderr)
-        # Print as a copy-pasteable command, with the prompt body inlined as
-        # a here-string so the user can experiment with the same invocation.
         print("  cmd: " + " ".join(
             f"'{a}'" if " " in a or "\n" in a else a for a in cmd
         ), file=sys.stderr)
@@ -516,9 +611,13 @@ def main() -> int:
             print("  out: " + str(out_path), file=sys.stderr)
         return 0
 
+    # Each run gets a fresh streaming state so block keys from a prior
+    # prompt's message ids can't accidentally dedupe content in this one.
+    _reset_partial_state()
+
     # Terminal header is plain text either way (it's for the human watching).
     human_header = (
-        f"=== PROMPT ({args.prompt}) ===\n"
+        f"=== PROMPT ({slug}) ===\n"
         f"{prompt_body}\n"
         f"=== CLAUDE ({'stream-json' if args.json_mode else 'text'}, {ts}) ===\n"
     )
@@ -532,7 +631,7 @@ def main() -> int:
         if args.json_mode:
             meta_event = {
                 "type": "test_meta",
-                "prompt_slug": args.prompt,
+                "prompt_slug": slug,
                 "prompt_body": prompt_body,
                 "started_at_utc": ts,
                 "format": "stream-json",
