@@ -52,3 +52,6 @@ venv/
 # Local scratch
 .scratch/
 *.log
+
+# IDE/clangd caches
+.cache/
