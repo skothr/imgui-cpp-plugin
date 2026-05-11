@@ -1,10 +1,5 @@
-// main.cpp — Dear ImGui tools-panel prototype (GLFW + OpenGL 3).
-//
-// Single non-docking window. The panel exposes Camera + Render groups and an
-// Apply button that prints the current state to stdout, one field per line.
-//
-// Adapted from the imgui-cpp skill's main_glfw_opengl3.cpp.template, with
-// docking + multi-viewport disabled per the prompt ("no docking yet").
+// main.cpp — Tools panel prototyping starter.
+// Single window, no docking. GLFW + OpenGL 3 backend.
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -42,73 +37,92 @@ void apply_window_hints() {
 #endif
 }
 
-struct AppState {
-    // Camera
+struct CameraState {
     float fov_degrees = 60.0f;
-    float near_plane  = 0.1f;
+    float near_plane  = 0.10f;
     float far_plane   = 1000.0f;
-
-    static constexpr float k_default_fov  = 60.0f;
-    static constexpr float k_default_near = 0.1f;
-    static constexpr float k_default_far  = 1000.0f;
-
-    // Render
-    bool   wireframe   = false;
-    ImVec4 clear_color{0.10f, 0.12f, 0.14f, 1.00f};
-    ImVec4 demo_text_color{1.00f, 0.80f, 0.20f, 1.00f};
 };
 
-void print_state(const AppState& s) {
-    std::printf("--- Apply ---\n");
-    std::printf("fov_degrees     = %g\n", static_cast<double>(s.fov_degrees));
-    std::printf("near_plane      = %g\n", static_cast<double>(s.near_plane));
-    std::printf("far_plane       = %g\n", static_cast<double>(s.far_plane));
-    std::printf("wireframe       = %s\n", s.wireframe ? "true" : "false");
-    std::printf("clear_color     = (%g, %g, %g, %g)\n",
-                static_cast<double>(s.clear_color.x), static_cast<double>(s.clear_color.y),
-                static_cast<double>(s.clear_color.z), static_cast<double>(s.clear_color.w));
-    std::printf("demo_text_color = (%g, %g, %g, %g)\n",
-                static_cast<double>(s.demo_text_color.x), static_cast<double>(s.demo_text_color.y),
-                static_cast<double>(s.demo_text_color.z), static_cast<double>(s.demo_text_color.w));
+constexpr CameraState k_default_camera{};
+
+struct RenderState {
+    bool   wireframe       = false;
+    ImVec4 clear_color     = ImVec4(0.10f, 0.12f, 0.14f, 1.00f);
+    ImVec4 demo_text_color = ImVec4(1.00f, 0.80f, 0.20f, 1.00f);
+};
+
+void print_state(const CameraState& cam, const RenderState& render) {
+    std::printf("camera.fov_degrees = %.3f\n", static_cast<double>(cam.fov_degrees));
+    std::printf("camera.near_plane = %.6f\n",  static_cast<double>(cam.near_plane));
+    std::printf("camera.far_plane = %.3f\n",   static_cast<double>(cam.far_plane));
+    std::printf("render.wireframe = %s\n",     render.wireframe ? "true" : "false");
+    std::printf("render.clear_color = (%.3f, %.3f, %.3f, %.3f)\n",
+                static_cast<double>(render.clear_color.x),
+                static_cast<double>(render.clear_color.y),
+                static_cast<double>(render.clear_color.z),
+                static_cast<double>(render.clear_color.w));
+    std::printf("render.demo_text_color = (%.3f, %.3f, %.3f, %.3f)\n",
+                static_cast<double>(render.demo_text_color.x),
+                static_cast<double>(render.demo_text_color.y),
+                static_cast<double>(render.demo_text_color.z),
+                static_cast<double>(render.demo_text_color.w));
+    std::fflush(stdout);
 }
 
-void draw_tools_panel(AppState& s) {
-    if (auto w = ImScoped::Window("Tools")) {
+void draw_tools_panel(CameraState& cam, RenderState& render) {
+    // Single fixed top-level window — no docking.
+    if (auto win = ImScoped::Window("Tools", nullptr,
+                                    ImGuiWindowFlags_NoCollapse)) {
         // Header
-        ImGui::TextUnformatted("Prototype Tools");
+        ImGui::TextUnformatted("Prototyping Tools");
         ImGui::Separator();
 
         // Camera group
-        if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImScoped::ID group{"camera"};
-            ImGui::SliderFloat("FOV (deg)", &s.fov_degrees, 30.0f, 120.0f, "%.1f");
-            ImGui::DragFloat("Near plane", &s.near_plane, 0.01f, 0.001f, s.far_plane, "%.3f");
-            ImGui::DragFloat("Far plane",  &s.far_plane,  1.00f, s.near_plane, 100000.0f, "%.2f");
+        {
+            ImScoped::ID camera_id{"camera"};
+            ImGui::TextUnformatted("Camera");
+            ImGui::SliderFloat("FOV (deg)", &cam.fov_degrees, 30.0f, 120.0f,
+                               "%.1f");
+            ImGui::DragFloat("Near plane", &cam.near_plane, 0.01f,
+                             0.001f, cam.far_plane, "%.4f");
+            ImGui::DragFloat("Far plane",  &cam.far_plane,  1.0f,
+                             cam.near_plane, 100000.0f, "%.2f");
             if (ImGui::Button("Reset camera")) {
-                s.fov_degrees = AppState::k_default_fov;
-                s.near_plane  = AppState::k_default_near;
-                s.far_plane   = AppState::k_default_far;
+                cam = k_default_camera;
             }
         }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
 
         // Render group
-        if (ImGui::CollapsingHeader("Render", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImScoped::ID group{"render"};
-            ImGui::Checkbox("Wireframe", &s.wireframe);
-            ImGui::ColorEdit3("Clear color", &s.clear_color.x);
+        {
+            ImScoped::ID render_id{"render"};
+            ImGui::TextUnformatted("Render");
+            ImGui::Checkbox("Wireframe", &render.wireframe);
+            ImGui::ColorEdit4("Clear color", &render.clear_color.x,
+                              ImGuiColorEditFlags_NoInputs |
+                              ImGuiColorEditFlags_AlphaPreview);
 
-            // Local style-stack override so the color picker visibly drives a
-            // single line of text. The StyleColor guard pops on scope exit.
+            // Local style-stack override: only the next Text() picks up the color.
             {
-                ImScoped::StyleColor text_col{ImGuiCol_Text, s.demo_text_color};
-                ImGui::TextUnformatted("Demo text (color overridden via style stack)");
+                ImScoped::StyleColor text_color{ImGuiCol_Text,
+                                                render.demo_text_color};
+                ImGui::TextUnformatted("Demo text (styled by local override)");
             }
-            ImGui::ColorEdit3("Demo text color", &s.demo_text_color.x);
+            // Back to the default text color here.
+            ImGui::ColorEdit4("Demo text color", &render.demo_text_color.x,
+                              ImGuiColorEditFlags_NoInputs |
+                              ImGuiColorEditFlags_AlphaPreview);
         }
 
+        ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
+
         if (ImGui::Button("Apply")) {
-            print_state(s);
+            print_state(cam, render);
         }
     }
 }
@@ -125,9 +139,9 @@ int main() {
     const float main_scale =
         ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
     GLFWwindow* window = glfwCreateWindow(
-        static_cast<int>(1100 * main_scale),
+        static_cast<int>(900 * main_scale),
         static_cast<int>(700 * main_scale),
-        "Tools panel — Dear ImGui",
+        "Tools panel",
         nullptr, nullptr);
     if (window == nullptr) {
         glfwTerminate();
@@ -140,7 +154,6 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    // Docking + multi-viewport intentionally left off — prompt says "no docking yet".
     io.ConfigDpiScaleFonts     = true;
     io.ConfigDpiScaleViewports = true;
 
@@ -152,7 +165,8 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, /*install_callbacks=*/true);
     ImGui_ImplOpenGL3_Init(k_glsl_version);
 
-    AppState state;
+    CameraState camera{};
+    RenderState render{};
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -165,17 +179,17 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        draw_tools_panel(state);
+        draw_tools_panel(camera, render);
 
         ImGui::Render();
 
         int display_w = 0, display_h = 0;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(state.clear_color.x * state.clear_color.w,
-                     state.clear_color.y * state.clear_color.w,
-                     state.clear_color.z * state.clear_color.w,
-                     state.clear_color.w);
+        glClearColor(render.clear_color.x * render.clear_color.w,
+                     render.clear_color.y * render.clear_color.w,
+                     render.clear_color.z * render.clear_color.w,
+                     render.clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

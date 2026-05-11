@@ -1,3 +1,13 @@
+# CMakeLists.txt — tools-panel prototype (Dear ImGui + GLFW + OpenGL 3, docking branch).
+#
+# Fetches Dear ImGui v1.92.7-docking and GLFW 3.4 via FetchContent, builds them
+# as a static lib, and links into a `main` executable compiled with C++23.
+#
+# Build:
+#   mkdir build && cd build && cmake .. && cmake --build .
+# Run:
+#   ./build/main
+
 cmake_minimum_required(VERSION 3.21)
 project(tools_panel
     LANGUAGES CXX
@@ -7,7 +17,6 @@ project(tools_panel
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
@@ -46,9 +55,7 @@ target_include_directories(imgui SYSTEM PUBLIC
 )
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-add_executable(main
-    src/main.cpp
-)
+add_executable(main src/main.cpp)
 target_include_directories(main PRIVATE src)
 target_link_libraries(main PRIVATE imgui)
 

@@ -1,15 +1,18 @@
-// main.cpp - IDE-style Dear ImGui editor layout (docking branch, v1.92.x).
+// main.cpp — IDE-style docking editor layout.
 //
-// Fullscreen dockspace with a menu bar, three default panels (Hierarchy /
-// Viewport / Inspector) laid out programmatically on first run via
-// DockBuilder. Subsequent runs restore whatever the user reshaped to via
-// imgui.ini.
+// Layout on first run:
+//   +-----------+-----------------------+-----------+
+//   | Hierarchy |       Viewport        | Inspector |
+//   |  (left)   |       (center)        |  (right)  |
+//   +-----------+-----------------------+-----------+
 //
-// Backend: GLFW + OpenGL 3. Multi-viewport on, so panels detach into native
-// OS windows when dragged outside the host frame.
+// First-run default is built via DockBuilder when no existing node is found
+// for the dockspace ID. On subsequent runs ImGui restores the previous layout
+// from imgui.ini, so user-adjusted splits / undocks are preserved.
 
+#include <cstdio>
 #include <imgui.h>
-#include <imgui_internal.h>   // DockBuilder* lives here
+#include <imgui_internal.h>           // DockBuilder* lives here
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
@@ -18,10 +21,7 @@
 #define GL_SILENCE_DEPRECATION
 #include <GLFW/glfw3.h>
 
-#include <cstdio>
 
-// Diagnostics use std::fprintf rather than std::println for portability across
-// libstdc++/libc++ versions; see bootstrap.md for the rationale.
 
 namespace {
 
@@ -48,17 +48,16 @@ void apply_window_hints() {
 #endif
 }
 
-// Submit a fullscreen host window with a menu bar and a dockspace inside it.
-// Returns the dockspace ID so the caller can drive DockBuilder on first run.
-ImGuiID submit_dockspace_host() {
+// Submit the fullscreen host window that owns the dockspace + main menu bar.
+// On first invocation (no existing dock node for this ID) seed a default
+// 3-pane layout. On subsequent frames / runs, imgui.ini already drove the
+// layout so DockBuilder is skipped.
+void submit_editor_dockspace() {
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
     ImGui::SetNextWindowViewport(vp->ID);
 
-    // Push style vars BEFORE the Window guard so they're active during Begin().
-    // ImScoped destructors run in reverse order, so these pop after End() -
-    // exactly the lifetime we want.
     ImScoped::StyleVar round  {ImGuiStyleVar_WindowRounding,   0.0f};
     ImScoped::StyleVar border {ImGuiStyleVar_WindowBorderSize, 0.0f};
     ImScoped::StyleVar padding{ImGuiStyleVar_WindowPadding,    ImVec2(0, 0)};
@@ -66,12 +65,9 @@ ImGuiID submit_dockspace_host() {
     constexpr ImGuiWindowFlags host_flags =
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoResize   | ImGuiWindowFlags_NoMove     |
-        ImGuiWindowFlags_NoBringToFrontOnFocus |
-        ImGuiWindowFlags_NoNavFocus |
-        ImGuiWindowFlags_NoDocking  |
-        ImGuiWindowFlags_MenuBar;
+        ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoDocking  | ImGuiWindowFlags_MenuBar;
 
-    ImGuiID dock_id = 0;
     if (auto host = ImScoped::Window("##EditorDockHost", nullptr, host_flags)) {
         if (auto mb = ImScoped::MenuBar()) {
             if (auto m = ImScoped::Menu("File")) {
@@ -79,13 +75,11 @@ ImGuiID submit_dockspace_host() {
                 ImGui::MenuItem("Open...");
                 ImGui::MenuItem("Save");
                 ImGui::Separator();
-                ImGui::MenuItem("Exit");
+                ImGui::MenuItem("Quit");
             }
             if (auto m = ImScoped::Menu("Edit")) {
                 ImGui::MenuItem("Undo");
                 ImGui::MenuItem("Redo");
-                ImGui::Separator();
-                ImGui::MenuItem("Preferences...");
             }
             if (auto m = ImScoped::Menu("View")) {
                 ImGui::MenuItem("Hierarchy");
@@ -97,40 +91,47 @@ ImGuiID submit_dockspace_host() {
             }
         }
 
-        dock_id = ImGui::GetID("EditorDockspace");
+        const ImGuiID dock_id = ImGui::GetID("EditorDockspace");
+
+        // First-run default layout: build only when no node exists yet.
+        // imgui.ini restores the node on subsequent runs, so this branch
+        // is skipped and user adjustments survive.
+        if (ImGui::DockBuilderGetNode(dock_id) == nullptr) {
+            ImGui::DockBuilderRemoveNode(dock_id);
+            ImGui::DockBuilderAddNode(dock_id, ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dock_id, vp->WorkSize);
+
+            ImGuiID left_id   = 0;
+            ImGuiID right_id  = 0;
+            ImGuiID center_id = 0;
+            ImGui::DockBuilderSplitNode(dock_id,   ImGuiDir_Left,  0.20f, &left_id,  &center_id);
+            ImGui::DockBuilderSplitNode(center_id, ImGuiDir_Right, 0.25f, &right_id, &center_id);
+
+            ImGui::DockBuilderDockWindow("Hierarchy", left_id);
+            ImGui::DockBuilderDockWindow("Viewport",  center_id);
+            ImGui::DockBuilderDockWindow("Inspector", right_id);
+            ImGui::DockBuilderFinish(dock_id);
+        }
+
         ImGui::DockSpace(dock_id);
     }
-    return dock_id;
 }
 
-// Build the default layout once. Re-runs only if no .ini layout exists for
-// the dockspace - so user customizations survive subsequent launches.
-void build_default_layout(ImGuiID dock_id) {
-    // If the dock node already has a layout (loaded from imgui.ini or built
-    // on a prior frame this session), skip. Otherwise lay out fresh.
-    if (ImGui::DockBuilderGetNode(dock_id) != nullptr &&
-        ImGui::DockBuilderGetNode(dock_id)->IsSplitNode()) {
-        return;
+void submit_panels() {
+    if (auto w = ImScoped::Window("Hierarchy")) {
+        ImGui::TextUnformatted("scene graph goes here");
     }
-
-    ImGui::DockBuilderRemoveNode(dock_id);
-    ImGui::DockBuilderAddNode(dock_id, ImGuiDockNodeFlags_DockSpace);
-    ImGui::DockBuilderSetNodeSize(dock_id, ImGui::GetMainViewport()->WorkSize);
-
-    ImGuiID center = dock_id;
-    ImGuiID left   = ImGui::DockBuilderSplitNode(center, ImGuiDir_Left,  0.20f, nullptr, &center);
-    ImGuiID right  = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, 0.25f, nullptr, &center);
-
-    ImGui::DockBuilderDockWindow("Hierarchy", left);
-    ImGui::DockBuilderDockWindow("Viewport",  center);
-    ImGui::DockBuilderDockWindow("Inspector", right);
-    ImGui::DockBuilderFinish(dock_id);
+    if (auto w = ImScoped::Window("Viewport")) {
+        ImGui::TextUnformatted("render target goes here");
+    }
+    if (auto w = ImScoped::Window("Inspector")) {
+        ImGui::TextUnformatted("selection details go here");
+    }
 }
 
 }  // namespace
 
 int main() {
-    // ---- GLFW init ------------------------------------------------------
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit()) {
         return 1;
@@ -142,7 +143,7 @@ int main() {
     GLFWwindow* window = glfwCreateWindow(
         static_cast<int>(1600 * main_scale),
         static_cast<int>(1000 * main_scale),
-        "Game Engine Editor",
+        "Editor",
         nullptr, nullptr);
     if (window == nullptr) {
         glfwTerminate();
@@ -151,7 +152,6 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
-    // ---- ImGui context + IO config --------------------------------------
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -166,7 +166,6 @@ int main() {
     style.ScaleAllSizes(main_scale);
     style.FontScaleDpi = main_scale;
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-        // Opaque + non-rounded so popped-out OS windows look identical to docked ones.
         style.WindowRounding = 0.0f;
         style.Colors[ImGuiCol_WindowBg].w = 1.0f;
     }
@@ -174,9 +173,8 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, /*install_callbacks=*/true);
     ImGui_ImplOpenGL3_Init(k_glsl_version);
 
-    const ImVec4 clear_color{0.10f, 0.12f, 0.14f, 1.00f};
+    constexpr ImVec4 clear_color{0.10f, 0.12f, 0.14f, 1.00f};
 
-    // ---- Main loop ------------------------------------------------------
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
         if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0) {
@@ -188,26 +186,12 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Dockspace host (with menu bar). MUST be submitted before any window
-        // that wants to dock into it - see docking-and-viewports.md.
-        const ImGuiID dock_id = submit_dockspace_host();
-        build_default_layout(dock_id);
+        // Dockspace must be submitted BEFORE the windows it can host.
+        submit_editor_dockspace();
+        submit_panels();
 
-        // The three default panels. They'll latch onto the DockBuilder layout
-        // on first run; on subsequent runs imgui.ini restores wherever the
-        // user reshaped them to.
-        if (auto w = ImScoped::Window("Hierarchy")) {
-            ImGui::TextUnformatted("scene graph goes here");
-        }
-        if (auto w = ImScoped::Window("Viewport")) {
-            ImGui::TextUnformatted("render target goes here");
-        }
-        if (auto w = ImScoped::Window("Inspector")) {
-            ImGui::TextUnformatted("selection details go here");
-        }
-
-        // Render.
         ImGui::Render();
+
         int display_w = 0, display_h = 0;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
@@ -228,7 +212,6 @@ int main() {
         glfwSwapBuffers(window);
     }
 
-    // ---- Shutdown (reverse init order) ---------------------------------
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();

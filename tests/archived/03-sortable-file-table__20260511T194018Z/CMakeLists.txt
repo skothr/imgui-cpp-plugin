@@ -1,5 +1,7 @@
+# CMakeLists.txt - sortable file-list table (Dear ImGui + GLFW + OpenGL 3, docking branch)
+
 cmake_minimum_required(VERSION 3.21)
-project(tools_panel
+project(sortable_file_table
     LANGUAGES CXX
     VERSION 0.1.0
 )
@@ -7,7 +9,6 @@ project(tools_panel
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
@@ -46,9 +47,7 @@ target_include_directories(imgui SYSTEM PUBLIC
 )
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-add_executable(main
-    src/main.cpp
-)
+add_executable(main src/main.cpp)
 target_include_directories(main PRIVATE src)
 target_link_libraries(main PRIVATE imgui)
 
@@ -59,4 +58,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         -Wunused -Woverloaded-virtual -Wconversion -Wsign-conversion
         -Wnull-dereference -Wdouble-promotion -Wformat=2
     )
+elseif (MSVC)
+    target_compile_options(main PRIVATE /W4 /permissive-)
 endif()

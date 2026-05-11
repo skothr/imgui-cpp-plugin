@@ -160,6 +160,16 @@ For anything more involved (tables, drag-drop, custom widgets, modals, etc.), lo
 
 When recommending a setup, copy the relevant template to the user's project rather than typing one from memory.
 
+**Source assets from `$CLAUDE_PLUGIN_ROOT`, never from `~/.claude/plugins/cache/...`.** Claude Code sets `$CLAUDE_PLUGIN_ROOT` to the live source root of the currently-loaded plugin — whether the plugin was loaded via `--plugin-dir`, user-scope install, project install, or marketplace cache. The canonical copy command is:
+
+```bash
+cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/imscoped.hpp" <dest>/
+cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/main_glfw_opengl3.cpp.template" <dest>/src/main.cpp
+cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/CMakeLists-glfw-opengl3.txt.template" <dest>/CMakeLists.txt
+```
+
+The path under `~/.claude/plugins/cache/` is a snapshot from the last marketplace install. It can be stale by hours, days, or weeks compared to the live source — and an agent that copies from it ships outdated templates to the user's project. `$CLAUDE_PLUGIN_ROOT` is the only path that's guaranteed fresh for the active session.
+
 ## What this skill is NOT for
 
 - Generic C++ help unrelated to ImGui — defer to base Claude.

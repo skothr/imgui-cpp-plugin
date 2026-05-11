@@ -67,14 +67,6 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
-# SYSTEM is load-bearing: ImGui's headers contain old-style casts, memset(
-# (void*)this, ...) tricks, and other patterns that trip every strict
-# warning flag (-Wold-style-cast, -Wconversion, etc.). Marking the
-# include dirs SYSTEM tells the compiler to treat ImGui's headers as
-# third-party — CMake translates this to -isystem (GCC/Clang) or
-# /external:I (MSVC), and the compiler silences warnings from those
-# paths. Strict flags on YOUR code are still in effect; only the
-# vendored ImGui headers get the pass.
 target_include_directories(imgui SYSTEM PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends

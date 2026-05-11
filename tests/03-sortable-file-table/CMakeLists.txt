@@ -1,4 +1,4 @@
-# CMakeLists.txt - sortable file-list table (Dear ImGui + GLFW + OpenGL 3, docking branch)
+# CMakeLists.txt — sortable file-list table (Dear ImGui + GLFW + OpenGL3, docking).
 
 cmake_minimum_required(VERSION 3.21)
 project(sortable_file_table
@@ -9,6 +9,7 @@ project(sortable_file_table
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
@@ -41,13 +42,17 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
+# SYSTEM keeps ImGui's old-style-cast / memset-this patterns from spamming
+# warnings into the user's own translation units.
 target_include_directories(imgui SYSTEM PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-add_executable(main src/main.cpp)
+add_executable(main
+    src/main.cpp
+)
 target_include_directories(main PRIVATE src)
 target_link_libraries(main PRIVATE imgui)
 

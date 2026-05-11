@@ -1,64 +1,40 @@
-# ImKnob — rotary-knob widget demo
+# 08-knob-widget
 
-A small Dear ImGui scaffold demonstrating a header-only custom `Knob` widget
-(`src/imknob.hpp`) and a three-knob audio-plugin-style demo (`src/main.cpp`).
+Custom Dear ImGui rotary-knob widget demo. Three knobs (gain, pan, cutoff)
+in one window. Vertical click-drag changes the value; Shift slows it down
+by 10x; a tooltip shows the current value to 3 decimals on hover.
 
-## Files
+`cutoff` uses a logarithmic mapping over `[20, 20000]`; the others are linear.
 
-| Path | Purpose |
-|---|---|
-| `src/imknob.hpp` | Header-only `ImKnob::Knob(...)` widget |
-| `src/imscoped.hpp` | RAII scope guards for Begin/End pairs |
-| `src/main.cpp` | Demo window: gain / pan / cutoff knobs |
-| `CMakeLists.txt` | Fetches Dear ImGui v1.92.7-docking + GLFW 3.4 via FetchContent |
-
-## Widget API
-
-```cpp
-#include "imknob.hpp"
-
-// Returns true on the frame the value changes.
-bool ImKnob::Knob(const char* label,
-                  float*      p_value,
-                  float       v_min,
-                  float       v_max,
-                  float       size   = 56.0f,
-                  KnobFlags   flags  = 0,
-                  const char* format = "%.3f");
-```
-
-Flags:
-
-- `KnobFlags_Logarithmic` — log-mapped value (requires `v_min > 0`)
-- `KnobFlags_NoTooltip`   — suppress the hover tooltip
-- `KnobFlags_NoInput`     — display-only, ignores drag
-
-## Interaction
-
-- Click-and-drag vertically; up = increase, down = decrease.
-- Sensitivity: ~200 pixels covers the full `v_min..v_max` range.
-- Hold **Shift** while dragging for 4x finer control.
-- Hover (or drag) shows a tooltip with the precise value, using `format`.
-- 270 deg sweep, indicator points straight up at midrange.
+Stack: C++23, GLFW + OpenGL 3, Dear ImGui v1.92.7-docking (fetched by CMake).
 
 ## Build
 
-```bash
+```
 cmake -S . -B build
 cmake --build build -j
 ./build/main
 ```
 
-First configure pulls Dear ImGui v1.92.7-docking and GLFW 3.4 — needs network
-access. After that, `compile_commands.json` lands in `build/` for clangd.
+Stdout prints whenever any knob changes:
 
-## Implementation notes
+```
+gain = 1.234
+pan = -0.456
+cutoff = 8123.450 Hz
+```
 
-The widget follows Dear ImGui's standard custom-widget protocol:
-`GetID` -> `CalcTextSize` -> `ItemSize` -> `ItemAdd` -> `ButtonBehavior` ->
-`DrawList` rendering. While the item is held, vertical mouse delta
-(`io.MouseDelta.y`, negated so up = increase) is integrated into the
-normalized position `t`, which is then mapped back through the linear or
-logarithmic value transform. Rendering uses `PathArcTo` + `PathStroke` for
-the track and filled arc, `AddCircleFilled` for the body, and `AddLine` for
-the indicator.
+## Where the widget lives
+
+`src/main.cpp`, `namespace knob`. The `knob::Knob` function follows the
+standard custom-widget item protocol from
+`references/custom-widgets.md`: `SkipItems` -> `GetID` -> `ItemSize` ->
+`ItemAdd` -> `ButtonBehavior` -> draw via `ImDrawList`. `MarkItemEdited`
+is called when the value changes so `IsItemEdited()` works downstream.
+
+Knob defaults are exposed via `knob::Config`:
+
+- `sweep_radians` — visible arc (default 270 degrees, gap at the bottom).
+- `pixels_per_full` — vertical pixels to traverse 0 -> 1 (default 200).
+- `radius` — knob radius in pixels.
+- `tooltip_precision` — `%.*f` precision in the tooltip.

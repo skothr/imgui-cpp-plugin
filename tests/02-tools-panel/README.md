@@ -1,61 +1,49 @@
 # 02-tools-panel
 
-A small Dear ImGui (v1.92.7-docking) tools panel for prototyping. Single
-non-docking window with Camera and Render groups, plus an Apply button that
-prints the current state to stdout.
+A small Dear ImGui tools panel scaffold for prototyping. Single window, no
+docking. GLFW + OpenGL 3 backend, C++23, vendored ImGui (v1.92.7-docking) and
+GLFW (3.4) fetched via CMake `FetchContent`.
 
 ## Layout
 
-```
-02-tools-panel/
-  CMakeLists.txt
-  src/
-    main.cpp
-    imscoped.hpp
-  README.md
-```
+The window (`Tools`) contains, top to bottom:
 
-Dear ImGui and GLFW are pulled in by CMake's `FetchContent` at configure time;
-no system packages required beyond a C++23 compiler, OpenGL, and the usual
-X11/Wayland dev headers GLFW needs.
+- Header `"Prototyping Tools"` + separator.
+- **Camera** group: FOV slider (degrees, 30..120), near/far plane drag-floats,
+  `Reset camera` button (restores the compile-time defaults).
+- **Render** group: `Wireframe` checkbox, clear-color picker (drives
+  `glClearColor`), and a `Demo text` line whose color is overridden locally via
+  an `ImScoped::StyleColor` guard so you can see the style stack pushing and
+  popping around exactly one widget. A second color picker below it edits that
+  override.
+- `Apply` button: prints the current state to stdout, one field per line.
 
-## Prerequisites (Linux)
+State lives in two plain structs (`CameraState`, `RenderState`) inside
+`src/main.cpp` — extend them in place.
 
-- `clang` >= 16 (for C++23 `<print>`) or `g++` >= 14
-- `cmake` >= 3.21
-- OpenGL development headers (`libgl1-mesa-dev` on Debian/Ubuntu)
-- X11 dev headers GLFW depends on:
-  `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`
-  (or the Wayland equivalents if you prefer)
-
-## Build
+## Build & run (Linux, clang)
 
 ```sh
-cmake -S . -B build -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+cd 02-tools-panel
+cmake -S . -B build -G "Unix Makefiles" \
+    -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build -j
-```
-
-## Run
-
-```sh
 ./build/main
 ```
 
-Adjust the controls and click **Apply** — the panel state prints to stdout,
-one field per line.
+First configure fetches ImGui and GLFW from GitHub (needs network). Subsequent
+configures are cached in `build/_deps/`. `compile_commands.json` is emitted in
+`build/` for clangd.
 
-## Controls
+## Notes
 
-- **Camera**
-  - `FOV (deg)` — slider, 30..120
-  - `Near plane` — drag-float, clamped to `(0, far_plane]`
-  - `Far plane` — drag-float, clamped to `[near_plane, 100000]`
-  - `Reset camera` — restores 60deg / 0.1 / 1000
-- **Render**
-  - `Wireframe` — checkbox (state only; this prototype doesn't wire it into a
-    real render path)
-  - `Clear color` — drives `glClearColor` directly
-  - `Demo text` — a line whose `ImGuiCol_Text` is overridden locally via an
-    `ImScoped::StyleColor` guard, so you can see the style stack at work
-  - `Demo text color` — color picker driving that override
-- **Apply** — prints current state to stdout
+- Strict warnings (`-Wall -Wextra -Wpedantic -Wold-style-cast -Wconversion
+  -Wsign-conversion -Wdouble-promotion ...`) are on for `src/main.cpp` only;
+  ImGui's headers are included as `SYSTEM` so its own old-style-cast / memset
+  tricks don't drown out warnings in your code.
+- Diagnostics use `std::fprintf` / `std::printf` rather than `std::println` —
+  `<print>` requires libstdc++-14 or libc++-18+ and a clang new enough to
+  compile `<bits/unicode.h>`. Switch in your own code once you've confirmed
+  your toolchain.
+- Begin/End and Push/Pop pairs use the RAII guards in `src/imscoped.hpp`
+  (`ImScoped::Window`, `ImScoped::ID`, `ImScoped::StyleColor`).
