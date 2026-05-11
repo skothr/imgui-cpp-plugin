@@ -103,6 +103,43 @@ FetchContent_MakeAvailable(imgui glfw)
 
 ImGui then gets compiled as a static library (the 5 + 2 cpps above) and linked into your executable alongside `glfw` and `OpenGL::GL`. `set(CMAKE_EXPORT_COMPILE_COMMANDS ON)` is non-negotiable — without it, clangd / LSP cannot follow you into ImGui's source.
 
+## Build-system hygiene — two traps the template already handles
+
+Two patterns this skill's bundled template gets right that hand-written CMakeLists in the wild typically don't. Both produce real build failures or unreadable warning floods on the user's first compile. If you're regenerating a CMakeLists from scratch, replicate these.
+
+### Mark vendored headers as `SYSTEM`
+
+```cmake
+target_include_directories(imgui SYSTEM PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
+)
+```
+
+The user's own target almost always enables a strict warning set — `-Wall -Wextra -Wpedantic -Wold-style-cast -Wconversion -Wsign-conversion -Wcast-align -Wdouble-promotion -Wformat=2` is a reasonable default. Those flags are great for the user's code. But ImGui's headers contain patterns that intentionally trip every one of them: `((float*)(void*)(char*)this)[idx]` in `ImVec2::operator[]`, `memset((void*)this, 0, sizeof(*this))` constructor zeroing, `(float)r * (1.0f/255.0f)` in `ImColor`, etc. Every `#include <imgui.h>` from a strict-flag translation unit produces 50+ lines of `-Wold-style-cast` warnings before any of the user's own code emits a thing.
+
+`SYSTEM` translates per-compiler:
+- GCC / Clang → `-isystem` (warnings silenced by default for these paths)
+- MSVC → `/external:I` (same behavior)
+
+The user's strict flags **remain fully in effect for their own .cpp files** — only the vendored headers get the pass. This is the canonical CMake idiom for "I'm vendoring a third-party library and I don't want its warning floor to bleed into mine."
+
+### Default diagnostics to `std::fprintf`, not `std::println`
+
+```cpp
+#include <cstdio>
+void glfw_error_callback(int e, const char* msg) {
+    std::fprintf(stderr, "GLFW Error %d: %s\n", e, msg);
+}
+```
+
+`<print>` and the `<format>` it builds on require **libstdc++-14 or libc++-18+**, AND a compiler whose ranges-constraint checking is compatible with the chosen stdlib. Two failure shapes seen in practice on Ubuntu 22.04 + clang 17 (a toolchain users frequently name):
+
+- libstdc++-11/12 (jammy default): `fatal error: print: No such file or directory` — the header simply doesn't exist.
+- libstdc++-14 installed: `<print>` is found but `<bits/unicode.h>`'s range-based UTF view fails clang's constraint checker via the [LLVM-61763 family of bugs](https://github.com/llvm/llvm-project/issues/46091). Symptom: a cascade of `no matching function for call to '__begin'`, `concept range = requires(_Tp& __t)` substitution failures, and finally `error: call to consteval function ... is not a constant expression`. `<format>` and `<print>` are both unusable.
+
+`std::fprintf` / `std::printf` works on every libstdc++ from C++98 forward, has its format strings type-checked at compile time via `__attribute__((format))` on every modern compiler, and costs nothing in readability for diagnostics. Recommend `std::println` for the user's own application code only after confirming their toolchain (compiler + stdlib version). The shipped template stays printf-based on purpose — it has to build on every Linux + clang combination users will name.
+
 ## Build-system notes
 
 CMake + FetchContent is the first-class flow this skill ships. Meson, Bazel, Premake, and raw Makefiles are roadmap items, not yet automated. The generic recipe for any of those: compile the seven cpps listed under "What you compile" into one library, add `imgui/` and `imgui/backends/` to the include path, link the resulting library against the system OpenGL library and GLFW. ImGui itself has no transitive dependencies beyond a C++17 standard library.
