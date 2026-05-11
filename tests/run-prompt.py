@@ -386,6 +386,37 @@ def _latest_transcript(tests_dir: Path, ref: str) -> int:
     return 0
 
 
+def _archive_existing_output(tests_dir: Path, slug: str, ts: str) -> Path | None:
+    """Move tests/<slug>/ to tests/archived/<slug>__<ts>/ if it exists.
+
+    Returns the archive destination on success, or None if nothing was
+    archived (the prompt either doesn't produce a project tree at all,
+    or this is the first run for the slug). The timestamp is the same
+    one used for the new run's transcript filename, so:
+
+        transcripts/<slug>__<ts>.jsonl   <- the run starting at <ts>
+        archived/<slug>__<ts>/           <- the prior output displaced by it
+
+    Same filesystem rename, so it's atomic. If the archive destination
+    somehow exists already (same-second collision), append a -N suffix.
+    """
+    existing = tests_dir / slug
+    if not existing.is_dir():
+        return None  # diagnostic prompt or first run; nothing to archive.
+
+    archive_root = tests_dir / "archived"
+    archive_root.mkdir(exist_ok=True)
+
+    dest = archive_root / f"{slug}__{ts}"
+    counter = 0
+    while dest.exists():
+        counter += 1
+        dest = archive_root / f"{slug}__{ts}-{counter}"
+
+    existing.rename(dest)
+    return dest
+
+
 def _find_plugin_root(start: Path) -> Path:
     """Walk up from `start` looking for the dir that contains `.claude-plugin/`.
 
@@ -599,7 +630,8 @@ def _run_one(args, prompt_file: Path, plugin_root: Path, tests_dir: Path) -> int
         cmd += ["--effort", args.effort]
 
     # --dry-run: show the resolved command and exit. stdbuf wrapper included
-    # so what you see is what would actually run.
+    # so what you see is what would actually run. Also report what *would*
+    # be archived so the user can see the side effect before it happens.
     if args.dry_run:
         print("would run:", file=sys.stderr)
         print("  cwd: " + str(tests_dir), file=sys.stderr)
@@ -609,7 +641,21 @@ def _run_one(args, prompt_file: Path, plugin_root: Path, tests_dir: Path) -> int
         ), file=sys.stderr)
         if out_path is not None:
             print("  out: " + str(out_path), file=sys.stderr)
+        if (tests_dir / slug).is_dir():
+            print(
+                f"  archive: tests/{slug}/ -> tests/archived/{slug}__{ts}/",
+                file=sys.stderr,
+            )
         return 0
+
+    # Archive any prior output for this slug before the run starts. The
+    # new run will write into tests/<slug>/ from scratch; the previous
+    # tree lives at tests/archived/<slug>__<ts>/ matching this run's
+    # transcript timestamp. No-op for diagnostic prompts that never
+    # produce a project tree.
+    archived = _archive_existing_output(tests_dir, slug, ts)
+    if archived is not None:
+        print(f"[..] archived prior output to {archived}", file=sys.stderr)
 
     # Each run gets a fresh streaming state so block keys from a prior
     # prompt's message ids can't accidentally dedupe content in this one.
