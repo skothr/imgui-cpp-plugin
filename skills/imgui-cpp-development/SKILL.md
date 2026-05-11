@@ -45,6 +45,8 @@ Apply these unless the user has explicitly opted out or the surrounding code fol
 
 6. **No modules, no coroutines, no aggressive ranges-based widget views in v1.** They fight ImGui's API surface and add maintenance load without commensurate value.
 
+7. **Cite line numbers only from references you've actually loaded this session.** When citing `imgui.cpp:N`, `imgui.h:N`, `imgui_widgets.cpp:N`, or `FAQ.md:N`, the line number must come from the text of a `references/*.md` doc you read this session — not from training memory. The vendored source is stable, so the references' line numbers are authoritative; copy them verbatim. If your routing decision skipped a reference but you want a precise citation anyway, **load it** — a partial Read of Tier 1 is cheap insurance against drift. If a partial load doesn't include the line you want to cite, prefer naming the function or section without a number (e.g. "`ImGuiWindow::GetID` in `imgui.cpp`'s `[SECTION] ID STACK` block") over inventing a line from memory. A wrong `imgui.cpp:N` costs the user's trust the next time they try to look one up; a vague but accurate citation costs nothing.
+
 ## Routing — load the right reference for the task
 
 The references are designed for **independent loading** — load exactly the one(s) the task needs and nothing else.
