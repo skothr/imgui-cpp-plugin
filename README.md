@@ -1,4 +1,4 @@
-# claude-imgui-cpp
+# imgui-cpp-plugin
 
 A Claude Code plugin for working with [Dear ImGui](https://github.com/ocornut/imgui) in modern C++23. Pinned upstream target: **v1.92.7-docking**.
 
@@ -12,7 +12,7 @@ The plugin ships:
 ## Install
 
 ```text
-/plugin marketplace add <github-user>/claude-imgui-cpp
+/plugin marketplace add <github-user>/imgui-cpp-plugin
 /plugin install imgui-cpp@imgui-cpp-local
 ```
 

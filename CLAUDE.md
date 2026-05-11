@@ -91,7 +91,7 @@ This repo's marketplace is named `imgui-cpp-local` (not `claude-imgui-cpp`) beca
 
 For non-trivial work in this repo, follow this loop:
 
-1. **Create a worktree before starting.** Use the `superpowers:using-git-worktrees` skill, or run `git worktree add ../claude-imgui-cpp-<topic-slug> -b <topic-slug>` directly. The worktree is where all edits land; `main`'s working tree stays clean.
+1. **Create a worktree before starting.** Use the `superpowers:using-git-worktrees` skill, or run `git worktree add ../imgui-cpp-plugin-<topic-slug> -b <topic-slug>` directly. The worktree is where all edits land; `main`'s working tree stays clean.
 2. **Commit freely inside the worktree.** Small, well-described commits are encouraged — they're free to make and they let the user diff your work checkpoint-by-checkpoint instead of squinting at one giant working-tree diff. No need to ask before each commit; the worktree is your scratch space.
 3. **Don't merge to `main` on your own initiative.** The user reviews the worktree's commits and explicitly says "merge", "land", or "ship X" before any worktree commits cross over to `main`. Until then, `main` does not change. When the merge is requested, fast-forward or rebase the worktree branch onto `main` — preserve the commit history rather than squashing unless the user asks.
 4. **Trivial edits to `main` are OK only for the smallest in-place fixes** the user explicitly asked for — typos, single-line tweaks during an active conversation about that file. Anything that takes more than a couple of edits should branch off into a worktree first.

@@ -1,12 +1,12 @@
-# Contributing to claude-imgui-cpp
+# Contributing to imgui-cpp-plugin
 
 Welcome! This plugin's value comes from being **grounded in actual upstream Dear ImGui source**, not in training-data memory. The contribution flow reflects that.
 
 ## One-time setup
 
 ```bash
-git clone https://github.com/skothr/claude-imgui-cpp.git
-cd claude-imgui-cpp
+git clone https://github.com/skothr/imgui-cpp-plugin.git
+cd imgui-cpp-plugin
 bash scripts/setup-vendor.sh
 ```
 
