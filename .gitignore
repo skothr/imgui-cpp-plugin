@@ -35,6 +35,15 @@ compile_commands.json
 .DS_Store
 Thumbs.db
 
+# Claude Code per-machine state (settings.json is shared; .local.json is personal)
+.claude/settings.local.json
+
+# Dev-time brainstorming / design specs (not for publication)
+docs/superpowers/
+
+# Test scaffolds — archived prior runs (produced by tests/run-prompt.py)
+tests/archived/
+
 # Python (skill-creator helpers)
 __pycache__/
 *.py[cod]
