@@ -7,17 +7,18 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  29-93   1. The canonical "child frame keeps growing every frame" pattern
-> - L  94-126  2. `BeginChild` sizing modes (cheat sheet)
-> - L 127-140  3. Why your `SetNextWindowSize` is being ignored
-> - L 141-164  4. Layout-query functions
-> - L 165-193  5. How sizing actually decides
-> - L 194-208  6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
-> - L 209-220  7. Scrollbar behavior in `BeginChild`
-> - L 221-248  8. Style fields that affect sizing
-> - L 249-276  9. `ImGuiSizeCallback` for custom constraints
-> - L 277-281  See also
+> - L  30-114  1. The canonical "child frame keeps growing every frame" pattern
+> - L 115-147  2. `BeginChild` sizing modes (cheat sheet)
+> - L 148-161  3. Why your `SetNextWindowSize` is being ignored
+> - L 162-185  4. Layout-query functions
+> - L 186-214  5. How sizing actually decides
+> - L 215-229  6. Auto-fit on first frame, ini state thereafter (the `ImGuiCond` knobs)
+> - L 230-241  7. Scrollbar behavior in `BeginChild`
+> - L 242-269  8. Style fields that affect sizing
+> - L 270-297  9. `ImGuiSizeCallback` for custom constraints
+> - L 298-302  See also
 <!-- QUICK_NAV_END -->
+
 
 
 
@@ -32,7 +33,7 @@ This reference covers how Dear ImGui actually decides window and child sizes, wh
 This is the user-flagged pain area. The reproducer:
 
 ```cpp
-// WRONG — child grows whenever content grows, never shrinks back.
+// WRONG — child grows every frame, never shrinks back.
 if (auto c = ImScoped::Child("##log",
                              ImVec2(0, 0),
                              ImGuiChildFlags_AutoResizeY)) {
@@ -42,9 +43,14 @@ if (auto c = ImScoped::Child("##log",
 }
 ```
 
-Every appended line increases the measured content height; the child grows; the parent window auto-fits to it; next frame, more lines arrive and the cycle repeats. There's nothing to bound it.
+Two flavors of the same bug — both trace to the same feedback loop:
 
-Three fixes, each appropriate in different situations:
+- **Content-growth flavor** (the obvious one): you append to `log_lines` each frame, the child's measured height climbs, the parent auto-fits, more lines arrive next frame, repeat.
+- **Static-content flavor** (the subtle one): even with content that never changes, the child can drift `+1px` per frame and slowly fill the viewport. The mechanism is the same: `AutoResizeY` makes the child's height a *function* of its content measurement, `ImVec2(0, 0)` couples its width to the parent's remaining space, and a parent in auto-fit mode (no `SetNextWindowSize`, no `AlwaysAutoResize`, ini settings not yet pinned) sizes itself to *that* measurement. Once both sides depend on each other's previous frame, any subpixel rounding, scrollbar appearance/disappearance, or per-frame `WorkRect` accounting will cause the measurement to drift by a fraction — and the loop carries that drift forward instead of damping it. **"Content is static" does not protect you**, because the *measurement of content inside a frame-dependent box* is what's unstable.
+
+The upstream comment at `imgui.h:457` calls out the related case (both axes set to `AutoResize`) as "NOT recommended" — but the single-axis variant has the same shape as soon as the *other* axis is coupled to a parent that's itself auto-fitting.
+
+Four fixes, each appropriate in different situations. Quick chooser: pick **Fix 4** if this is the main content area of the parent window (editor pane, document, file list); pick **Fix 1** if it's a side pane with a sensible default height; pick **Fix 2** if it's a small content-fit element (log tail, tooltip body) that should grow up to a cap then scroll; pick **Fix 3** if no single height is right and the user benefits from dragging.
 
 **Fix 1 — Pin the height explicitly.** The simplest, and right whenever you have a sensible default:
 
@@ -89,6 +95,21 @@ if (auto c = ImScoped::Child("##log", ImVec2(-FLT_MIN, default_h),
 ```
 
 `ResizeY` (`imgui.h:1268`) lets the user drag the bottom border. The child still has a definite size each frame — it's just chosen by the user, not your code. Double-clicking the resize border restores auto-fit. Note that `ResizeX/ResizeY` enables ini saving for child sizes (per the same header comment), so the user's choice persists.
+
+**Fix 4 — Drop `AutoResizeY`; fill the parent and scroll.** The right fix whenever the child should behave like the main content area of its parent — code editors, document panes, file lists, anything where "scroll if too tall" is the expected behavior:
+
+```cpp
+if (auto c = ImScoped::Child("##editor", ImVec2(0, 0),
+                             ImGuiChildFlags_Borders)) {
+    for (auto& line : code_lines) {
+        ImGui::TextUnformatted(line.c_str());
+    }
+}
+```
+
+Without `AutoResizeY`, the child no longer measures its content — it just takes the parent's remaining space. Content taller than that space scrolls inside the child. The feedback loop is broken from the *other* end: the child's height is now a function of the *parent's* size, not its own content, so there's nothing for content drift to feed into. This is almost always the right fix for panels inside an `Editor`-style window the user already resizes; the other three fixes are for cases where the child should genuinely shrink to its content.
+
+If you want the loop broken but also want the parent's size to be predictable (e.g. you're driving the parent from code), pair Fix 4 with `SetNextWindowSize(..., ImGuiCond_FirstUseEver)` on the parent so the parent itself isn't doing per-frame auto-fit. See §3 for the `SetNextWindow*` rules.
 
 ---
 

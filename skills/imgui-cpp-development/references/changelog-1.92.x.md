@@ -3,19 +3,20 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  27-42   The headline change: the font system rework (v1.92.0)
-> - L  43-86   v1.92.0 (Released 2025-06-25)
-> - L  87-90   v1.92.1 (Released 2025-07-09)
-> - L  91-117  v1.92.2 (Released 2025-08-11)
-> - L 118-121  v1.92.3 (Released 2025-09-17)
-> - L 122-141  v1.92.4 (Released 2025-10-14)
-> - L 142-161  v1.92.5 (Released 2025-11-20)
-> - L 162-209  v1.92.6 (Released 2026-02-17)
-> - L 210-239  v1.92.7 (Released 2026-04-02)
-> - L 240-263  Upgrade checklist (v1.91.x → v1.92.7)
-> - L 264-277  What's still pending upstream
-> - L 278-282  See also
+> - L  28-43   The headline change: the font system rework (v1.92.0)
+> - L  44-87   v1.92.0 (Released 2025-06-25)
+> - L  88-91   v1.92.1 (Released 2025-07-09)
+> - L  92-118  v1.92.2 (Released 2025-08-11)
+> - L 119-122  v1.92.3 (Released 2025-09-17)
+> - L 123-142  v1.92.4 (Released 2025-10-14)
+> - L 143-162  v1.92.5 (Released 2025-11-20)
+> - L 163-210  v1.92.6 (Released 2026-02-17)
+> - L 211-240  v1.92.7 (Released 2026-04-02)
+> - L 241-264  Upgrade checklist (v1.91.x → v1.92.7)
+> - L 265-278  What's still pending upstream
+> - L 279-283  See also
 <!-- QUICK_NAV_END -->
+
 
 
 

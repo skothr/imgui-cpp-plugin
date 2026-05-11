@@ -7,17 +7,18 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  29-45   1. The two ConfigFlags — independent, not paired
-> - L  46-97   2. DockSpace canonical patterns
-> - L  98-125  3. Multi-viewport setup
-> - L 126-147  4. Common pitfalls
-> - L 148-178  5. DockBuilder — programmatic layout, with a stability caveat
-> - L 179-192  6. Programmatic queries: SetNextWindowDockID, GetWindowDockID, IsWindowDocked
-> - L 193-221  7. ImGuiWindowClass — class-scoped docking
-> - L 222-237  8. .ini persistence — automatic, with manual hooks
-> - L 238-251  9. Per-viewport state
-> - L 252-256  See also
+> - L  30-46   1. The two ConfigFlags — independent, not paired
+> - L  47-98   2. DockSpace canonical patterns
+> - L  99-126  3. Multi-viewport setup
+> - L 127-148  4. Common pitfalls
+> - L 149-179  5. DockBuilder — programmatic layout, with a stability caveat
+> - L 180-193  6. Programmatic queries: SetNextWindowDockID, GetWindowDockID, IsWindowDocked
+> - L 194-222  7. ImGuiWindowClass — class-scoped docking
+> - L 223-238  8. .ini persistence — automatic, with manual hooks
+> - L 239-252  9. Per-viewport state
+> - L 253-257  See also
 <!-- QUICK_NAV_END -->
+
 
 
 
@@ -69,9 +70,13 @@ const ImGuiViewport* vp = ImGui::GetMainViewport();
 ImGui::SetNextWindowPos(vp->WorkPos);
 ImGui::SetNextWindowSize(vp->WorkSize);
 ImGui::SetNextWindowViewport(vp->ID);
-ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+// Style vars consumed by Begin() must be pushed BEFORE the Window guard.
+// ImScoped::StyleVar destructors run in reverse construction order, so
+// they pop AFTER the Window's End() — the lifetime we want, and immune
+// to early-return from the body.
+ImScoped::StyleVar round  {ImGuiStyleVar_WindowRounding,   0.0f};
+ImScoped::StyleVar border {ImGuiStyleVar_WindowBorderSize, 0.0f};
+ImScoped::StyleVar padding{ImGuiStyleVar_WindowPadding,    ImVec2(0, 0)};
 
 if (auto host = ImScoped::Window("##DockHost", nullptr,
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
@@ -83,7 +88,6 @@ if (auto host = ImScoped::Window("##DockHost", nullptr,
     }
     ImGui::DockSpace(ImGui::GetID("MyDockspace"));
 }
-ImGui::PopStyleVar(3);
 ```
 
 Two upstream invariants from `imgui.h:982-984`:

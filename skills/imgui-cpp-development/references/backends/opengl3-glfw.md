@@ -7,18 +7,19 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  14-50   1. Init and shutdown
-> - L  51-73   2. Per-frame ordering
-> - L  74-96   3. Multi-viewport on GLFW
-> - L  97-128  4. Common pitfalls
-> - L 129-134  5. What this backend is
-> - L 135-165  6. Public API surface
-> - L 166-180  7. The `glsl_version` argument
-> - L 181-190  8. GL loader
-> - L 191-213  9. `ImTextureID` and `ImTextureRef`
-> - L 214-233  10. Bundled main.cpp template
-> - L 234-238  See also
+> - L  28-64   1. Init and shutdown
+> - L  65-87   2. Per-frame ordering
+> - L  88-110  3. Multi-viewport on GLFW
+> - L 111-142  4. Common pitfalls
+> - L 143-148  5. What this backend is
+> - L 149-179  6. Public API surface
+> - L 180-194  7. The `glsl_version` argument
+> - L 195-204  8. GL loader
+> - L 205-227  9. `ImTextureID` and `ImTextureRef`
+> - L 228-247  10. Bundled main.cpp template
+> - L 248-252  See also
 <!-- QUICK_NAV_END -->
+
 
 
 ---

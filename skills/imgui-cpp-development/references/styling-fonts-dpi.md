@@ -7,23 +7,24 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  39-72   1. The style stack
-> - L  73-95   2. Theme setup
-> - L  96-132  3. Loading custom fonts
-> - L 133-173  4. Merging an icon font
-> - L 174-201  5. DPI baseline (recommended setup)
-> - L 202-224  6. Non-ASCII characters in widget labels
-> - L 225-240  7. Pitfalls quick reference
-> - L 241-261  8. The v1.92 font-system rework
-> - L 262-288  9. `ImGuiStyle` field reference
-> - L 289-310  10. The live theme editor: `ShowStyleEditor()`
-> - L 311-328  11. Font atlas
-> - L 329-347  12. `ImFontConfig` fields that matter
-> - L 348-375  13. The three DPI knobs explained
-> - L 376-396  14. Glyph ranges (legacy)
-> - L 397-410  15. Multi-viewport DPI
-> - L 411-415  See also
+> - L  40-73   1. The style stack
+> - L  74-96   2. Theme setup
+> - L  97-133  3. Loading custom fonts
+> - L 134-174  4. Merging an icon font
+> - L 175-202  5. DPI baseline (recommended setup)
+> - L 203-225  6. Non-ASCII characters in widget labels
+> - L 226-241  7. Pitfalls quick reference
+> - L 242-262  8. The v1.92 font-system rework
+> - L 263-289  9. `ImGuiStyle` field reference
+> - L 290-311  10. The live theme editor: `ShowStyleEditor()`
+> - L 312-329  11. Font atlas
+> - L 330-348  12. `ImFontConfig` fields that matter
+> - L 349-376  13. The three DPI knobs explained
+> - L 377-397  14. Glyph ranges (legacy)
+> - L 398-411  15. Multi-viewport DPI
+> - L 412-416  See also
 <!-- QUICK_NAV_END -->
+
 
 
 

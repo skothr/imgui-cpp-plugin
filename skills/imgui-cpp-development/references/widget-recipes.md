@@ -7,23 +7,24 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  30-49   Find your recipe by symptom
-> - L  50-74   1. Drag and drop
-> - L  75-100  2. Color pickers
-> - L 101-128  3. Tooltips
-> - L 129-151  4. Selectable list with stable IDs
-> - L 152-173  5. Combo with virtualization
-> - L 174-204  6. `InputText` with `std::string`
-> - L 205-221  7. Plotting (`PlotLines`, `PlotHistogram`)
-> - L 222-242  8. Tree view
-> - L 243-256  9. Disabled blocks
-> - L 257-279  10. Keyboard focus
-> - L 280-292  11. `InputTextMultiline`
-> - L 293-306  12. Progress bar
-> - L 307-314  13. File dialogs — explicit non-recipe
-> - L 315-345  14. End-to-end: drag-drop reordering of a list
-> - L 346-350  See also
+> - L  31-50   Find your recipe by symptom
+> - L  51-75   1. Drag and drop
+> - L  76-101  2. Color pickers
+> - L 102-129  3. Tooltips
+> - L 130-152  4. Selectable list with stable IDs
+> - L 153-174  5. Combo with virtualization
+> - L 175-205  6. `InputText` with `std::string`
+> - L 206-222  7. Plotting (`PlotLines`, `PlotHistogram`)
+> - L 223-243  8. Tree view
+> - L 244-257  9. Disabled blocks
+> - L 258-280  10. Keyboard focus
+> - L 281-293  11. `InputTextMultiline`
+> - L 294-307  12. Progress bar
+> - L 308-315  13. File dialogs — explicit non-recipe
+> - L 316-346  14. End-to-end: drag-drop reordering of a list
+> - L 347-351  See also
 <!-- QUICK_NAV_END -->
+
 
 
 

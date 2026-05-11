@@ -7,19 +7,20 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  14-23   1. What this engine does (and what it doesn't)
-> - L  24-43   2. Anatomy of a test
-> - L  44-78   3. Registration recipe
-> - L  79-111  4. The test API surface
-> - L 112-134  5. Two run modes
-> - L 135-152  6. Named references — the path syntax
-> - L 153-195  7. Initialization recipe (CMake + bootstrap)
-> - L 196-217  8. Headless run pump
-> - L 218-249  9. Common patterns
-> - L 250-260  10. Limitations and pitfalls
-> - L 261-268  11. Recommended workflow
-> - L 269-273  See also
+> - L  29-38   1. What this engine does (and what it doesn't)
+> - L  39-58   2. Anatomy of a test
+> - L  59-93   3. Registration recipe
+> - L  94-126  4. The test API surface
+> - L 127-149  5. Two run modes
+> - L 150-167  6. Named references — the path syntax
+> - L 168-210  7. Initialization recipe (CMake + bootstrap)
+> - L 211-232  8. Headless run pump
+> - L 233-264  9. Common patterns
+> - L 265-275  10. Limitations and pitfalls
+> - L 276-283  11. Recommended workflow
+> - L 284-288  See also
 <!-- QUICK_NAV_END -->
+
 
 
 ---

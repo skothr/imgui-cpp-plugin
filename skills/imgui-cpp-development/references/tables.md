@@ -7,23 +7,24 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  35-71   TLDR — canonical sortable, scrollable, virtualized grid
-> - L  72-83   Find your task
-> - L  84-107  BeginTable signature and the conditional-end rule
-> - L 108-133  The "Tables" section index in imgui_tables.cpp
-> - L 134-156  Column setup
-> - L 157-169  Per-row submission
-> - L 170-181  Width policies
-> - L 182-199  Table-level sizing flags
-> - L 200-230  Sorting
-> - L 231-248  Selection in tables
-> - L 249-267  ImGuiListClipper for big tables
-> - L 268-284  Per-cell background colors
-> - L 285-309  Common pitfalls
-> - L 310-328  Typical call-flow recap
-> - L 329-332  Demo as the canonical reference
-> - L 333-337  See also
+> - L  36-72   TLDR — canonical sortable, scrollable, virtualized grid
+> - L  73-84   Find your task
+> - L  85-108  BeginTable signature and the conditional-end rule
+> - L 109-134  The "Tables" section index in imgui_tables.cpp
+> - L 135-157  Column setup
+> - L 158-170  Per-row submission
+> - L 171-182  Width policies
+> - L 183-200  Table-level sizing flags
+> - L 201-231  Sorting
+> - L 232-249  Selection in tables
+> - L 250-268  ImGuiListClipper for big tables
+> - L 269-285  Per-cell background colors
+> - L 286-310  Common pitfalls
+> - L 311-329  Typical call-flow recap
+> - L 330-333  Demo as the canonical reference
+> - L 334-338  See also
 <!-- QUICK_NAV_END -->
+
 
 
 

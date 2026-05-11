@@ -7,17 +7,18 @@
 <!-- QUICK_NAV_BEGIN -->
 > **Quick navigation** (jump to a section instead of loading the whole file - `Read offset=N limit=M`):
 >
-> - L  16-44   1. Canonical confirmation modal
-> - L  45-82   2. Why "OpenPopup every frame" is wrong
-> - L  83-117  3. Context-menu helpers
-> - L 118-138  4. Common pitfalls
-> - L 139-163  5. The popup lifecycle
-> - L 164-189  6. Modal vs non-modal
-> - L 190-217  7. Closing
-> - L 218-245  8. ID scoping
-> - L 246-253  9. Nesting popups
-> - L 254-258  See also
+> - L  29-57   1. Canonical confirmation modal
+> - L  58-95   2. Why "OpenPopup every frame" is wrong
+> - L  96-130  3. Context-menu helpers
+> - L 131-151  4. Common pitfalls
+> - L 152-176  5. The popup lifecycle
+> - L 177-202  6. Modal vs non-modal
+> - L 203-230  7. Closing
+> - L 231-258  8. ID scoping
+> - L 259-266  9. Nesting popups
+> - L 267-271  See also
 <!-- QUICK_NAV_END -->
+
 
 
 This reference covers the popup lifecycle (the most-misunderstood part of the API), modal vs non-modal behavior, the context-menu helpers, ID scoping inside popups, and the small set of recurring pitfalls. The single rule worth memorizing first: **`OpenPopup` is a one-shot intent, not a per-frame command.** Almost every "my popup never opens" or "my popup closes immediately" report traces back to violating that.
