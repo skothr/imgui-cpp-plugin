@@ -34,7 +34,7 @@ The following are tracked as Linear feature requests and will be added in subseq
 
 ## Derived plugins
 
-- **[imgui-skothr-toolkit-plugin](https://github.com/skothr/imgui-skothr-toolkit-plugin)** — derived from this plugin via clone-and-rewire (no GitHub fork, because GitHub blocks same-account forks even with a rename). Ships host-side guidance for C++ projects depending on the [imgui-toolkit](https://github.com/skothr/imgui-toolkit) library — Application + CommandQueue lifecycle, three-tier state, Setting<T>, ScopedX RAII, math primitives, viz atoms, multi-threading. Complementary to this plugin: users with toolkit-using projects typically install both. Tracks this plugin's infrastructure (eval harness, marketplace metadata, command conventions) via `git fetch upstream && git cherry-pick`; skill content diverges.
+- **[imgui-skothr-toolkit](https://github.com/skothr/imgui-skothr-toolkit)** — a monorepo containing the [imgui-toolkit](https://github.com/skothr/imgui-skothr-toolkit) C++ library plus a Claude Code plugin describing host-side conventions for using it (Application + CommandQueue lifecycle, three-tier state, Setting<T>, ScopedX RAII, math primitives, viz atoms, multi-threading). Plugin half was derived from this plugin via clone-and-rewire (no GitHub fork, because GitHub blocks same-account forks even with a rename). Complementary to this plugin: users with toolkit-using projects typically install both. Tracks this plugin's infrastructure (eval harness, marketplace metadata, command conventions) via `git fetch upstream && git cherry-pick`; skill content and the bundled library diverge fully.
 
 ## Repo orientation
 
