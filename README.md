@@ -32,6 +32,10 @@ The following are tracked as Linear feature requests and will be added in subseq
 - **Backends:** Vulkan, DirectX 11, DirectX 12, Metal, WebGPU, SDL3 platform.
 - **Build systems:** Meson + WrapDB, Bazel + `http_archive`, Premake5, raw Makefiles. CMake + FetchContent is first-class in v1; other build systems get a generic fallback.
 
+## Derived plugins
+
+- **[imgui-skothr-toolkit-plugin](https://github.com/skothr/imgui-skothr-toolkit-plugin)** — derived from this plugin via clone-and-rewire (no GitHub fork, because GitHub blocks same-account forks even with a rename). Ships host-side guidance for C++ projects depending on the [imgui-toolkit](https://github.com/skothr/imgui-toolkit) library — Application + CommandQueue lifecycle, three-tier state, Setting<T>, ScopedX RAII, math primitives, viz atoms, multi-threading. Complementary to this plugin: users with toolkit-using projects typically install both. Tracks this plugin's infrastructure (eval harness, marketplace metadata, command conventions) via `git fetch upstream && git cherry-pick`; skill content diverges.
+
 ## Repo orientation
 
 | Path | Purpose |
