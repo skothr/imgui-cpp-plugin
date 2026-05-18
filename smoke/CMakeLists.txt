@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 project(imtool_smoke LANGUAGES CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
+
 include(FetchContent)
 
 # Dear ImGui — pinned, manually wrapped into an imgui::imgui target since
