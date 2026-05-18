@@ -246,13 +246,6 @@ public:
         TT r(*this); return (r ^= rhs);
     }
 
-    template<int NN=N, int MM=M, typename TT=Matrix<T,NN,MM>>
-    [[nodiscard]] TT operator^(const TT &rhs) const requires is_square_matrix<TT> {
-        Matrix<T, N, MM> r;
-        for(int rr = 0; rr < N; rr++) for(int c = 0; c < MM; c++) { r[rr][c] = dot(row(rr), rhs.col(c)); }
-        return r;
-    }
-
     [[nodiscard]] Vector<T, M> operator^(const Vector<T, M> &rhs) const {
         Vector<T, M> r;
         for(int i = 0; i < M; i++) { r[i] = dot(row(i), rhs); }
