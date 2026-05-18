@@ -15,6 +15,7 @@ endif()
 
 add_library(imtool STATIC
   src/version.cpp
+  src/common/logging.cpp
 )
 add_library(imtool::imtool ALIAS imtool)
 
