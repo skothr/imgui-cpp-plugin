@@ -7,6 +7,12 @@ if(NOT TARGET imgui::imgui)
     "Use `find_package(imgui CONFIG REQUIRED)` or add the Dear ImGui sources first.")
 endif()
 
+if(NOT TARGET nlohmann_json::nlohmann_json)
+  message(FATAL_ERROR
+    "imtool requires an `nlohmann_json::nlohmann_json` target before `add_subdirectory(toolkit)`. "
+    "Use `find_package(nlohmann_json CONFIG REQUIRED)` or add the sources first.")
+endif()
+
 add_library(imtool STATIC
   src/version.cpp
 )
@@ -18,11 +24,10 @@ target_include_directories(imtool PUBLIC
 )
 
 target_compile_features(imtool PUBLIC cxx_std_23)
-target_link_libraries(imtool PUBLIC imgui::imgui)
-
-if(TARGET nlohmann_json::nlohmann_json)
-  target_link_libraries(imtool PUBLIC nlohmann_json::nlohmann_json)
-endif()
+target_link_libraries(imtool PUBLIC
+  imgui::imgui
+  nlohmann_json::nlohmann_json
+)
 
 option(IMTOOL_BUILD_EXAMPLES "Build imtool example apps (Epic H)" OFF)
 if(IMTOOL_BUILD_EXAMPLES AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/examples/CMakeLists.txt)
