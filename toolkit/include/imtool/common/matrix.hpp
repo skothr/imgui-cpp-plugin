@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <imtool/common/logging.hpp>
 #include <imtool/common/vector.hpp>
 
 namespace imtool {
@@ -78,13 +79,20 @@ private:
 
     template<typename TT = Matrix<T,N,M>>
     void cofactor(Matrix<T,N,M> &result, int row, int col, int dim) const requires is_square_matrix<TT> {
-        int i = 0; int j = 0;
-        for(int x = 0; x < dim; x++)
-            for(int y = 0; y < dim; y++)
-                if(x != col && y != row) {
-                    result[j++][i] = m_data[y*M + x];
-                    if(j == dim - 1) { j = 0; i++; }
-                }
+        // Fill the top-left (dim-1)x(dim-1) block with the minor: this matrix with
+        // `row` and `col` deleted. Addressing via operator() keeps the storage
+        // convention consistent (the previous hand-rolled index walk transposed it).
+        int ri = 0;
+        for(int r = 0; r < dim; r++) {
+            if(r == row) { continue; }
+            int ci = 0;
+            for(int c = 0; c < dim; c++) {
+                if(c == col) { continue; }
+                result(ri, ci) = (*this)(r, c);
+                ci++;
+            }
+            ri++;
+        }
     }
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] T determinant(int dim) const requires is_square_matrix<TT> {
@@ -92,20 +100,22 @@ private:
         T det = T{0}; T sign = T{1}; Matrix<T,N,M> temp;
         for(int c = 0; c < dim; c++) {
             cofactor(temp, 0, c, dim);
-            det += sign*m_data[0*M + c] * temp.determinant(dim-1);
+            det += sign*(*this)(0, c) * temp.determinant(dim-1);
             sign = -sign;
         }
         return det;
     }
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] TT adjoint() const requires is_square_matrix<TT> {
-        T sign = T{1}; Matrix<T,N,M> result, temp;
-        if(N == 1) { result[0][0] = T{1}; return result; }
-        for(int c = 0; c < N; c++)
-            for(int r = 0; r < N; r++) {
-                cofactor(temp, r, c, N);
-                sign = ((r+c) % 2 == 0) ? T{1} : T{-1};
-                result[r][c] = sign*temp.determinant(N-1);
+        Matrix<T,N,M> result, temp;
+        if(N == 1) { result(0,0) = T{1}; return result; }
+        // Adjugate = transpose of the cofactor matrix: adj(i,j) = (-1)^(i+j) * M_ji,
+        // where M_ji is the minor with row j and column i removed.
+        for(int i = 0; i < N; i++)
+            for(int j = 0; j < N; j++) {
+                cofactor(temp, j, i, N);
+                const T sign = ((i+j) % 2 == 0) ? T{1} : T{-1};
+                result(i, j) = sign*temp.determinant(N-1);
             }
         return result;
     }
@@ -206,14 +216,18 @@ public:
 
     [[nodiscard]] Matrix<T, M, N> transposed() const {
         Matrix<T, M, N> r;
-        for(int x = 0; x < M; x++) for(int y = 0; y < N; y++) { r[x][y] = m_data[y*M + x]; }
+        for(int i = 0; i < M; i++) for(int j = 0; j < N; j++) { r(i, j) = (*this)(j, i); }
         return r;
     }
 
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] typename std::enable_if<(N == M), TT>::type inverse() const {
         T det = determinant(N);
-        if(det == T{0}) { std::cout << "====> WARNING: Matrix doesn't have an inverse!\n"; return *this; }
+        if(det == T{0}) {
+            log() << LogLevel::Warning << "Matrix has no inverse (determinant is zero); returning input unchanged";
+            log().flush();
+            return *this;
+        }
         return adjoint() / det;
     }
 
@@ -224,8 +238,10 @@ public:
 
     [[nodiscard]] const ColVector& operator[](int c) const { return m_columns[c]; }
     [[nodiscard]] ColVector& operator[](int c)             { return m_columns[c]; }
-    [[nodiscard]] const T& operator()(int r, int c) const  { return m_data[r*M + c]; }
-    [[nodiscard]] T& operator()(int r, int c)              { return m_data[r*M + c]; }
+    // Column-major addressing, consistent with operator[](c)[r], m_columns, and
+    // data() (the flat buffer OpenGL expects): element (row r, col c) == m_columns[c][r].
+    [[nodiscard]] const T& operator()(int r, int c) const  { return m_columns[c][r]; }
+    [[nodiscard]] T& operator()(int r, int c)              { return m_columns[c][r]; }
 
     Matrix& operator+=(const Matrix &rhs)       { for(int i = 0; i < N*M; i++) m_data[i] += rhs.m_data[i]; return *this; }
     [[nodiscard]] Matrix operator+ (const Matrix &rhs) const { Matrix r(*this); return (r += rhs); }
@@ -235,9 +251,12 @@ public:
     template<typename TT = Matrix<T,N,M>>
     typename std::enable_if<(N == M), TT&>::type operator^=(const TT &rhs) {
         std::array<Vector<T, M>, N> result;
+        // (M*rhs)(r,c) = dot(row r, column c). Storage is column-major, so the
+        // (row r, col c) entry is column c at index r -> result[c][r]. Writing
+        // result[r][c] (as before) stores the transpose of the product.
         for(int r = 0; r < N; r++)
             for(int c = 0; c < M; c++)
-                { result[r][c] = dot(row(r), rhs.col(c)); }
+                { result[c][r] = dot(row(r), rhs.col(c)); }
         m_columns = result;
         return *this;
     }
@@ -274,10 +293,14 @@ public:
     Matrix& operator/=(const T &rhs)      { for(int i = 0; i < N*M; i++) m_data[i] /= rhs; return *this; }
     [[nodiscard]] Matrix operator/(const T &rhs) const { Matrix r(*this); return (r /= rhs); }
 
-    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator+(const T &lhs, const Matrix<T2,N2,M2> &rhs);
-    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator-(const T &lhs, const Matrix<T2,N2,M2> &rhs);
-    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator*(const T &lhs, const Matrix<T2,N2,M2> &rhs);
-    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator/(const T &lhs, const Matrix<T2,N2,M2> &rhs);
+    // lhs is `const T2&` (matching the namespace-scope definitions below) — NOT
+    // `const T&`. With `const T&` the friend is a *different* template than the
+    // definition, so `scalar op matrix` saw two equally-good overloads and was
+    // ambiguous (never compiled).
+    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator+(const T2 &lhs, const Matrix<T2,N2,M2> &rhs);
+    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator-(const T2 &lhs, const Matrix<T2,N2,M2> &rhs);
+    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator*(const T2 &lhs, const Matrix<T2,N2,M2> &rhs);
+    template<typename T2, int N2, int M2> friend Matrix<T2,N2,M2> operator/(const T2 &lhs, const Matrix<T2,N2,M2> &rhs);
 
     [[nodiscard]] T sum() const {
         T s = T{0};
@@ -291,7 +314,11 @@ public:
 };
 
 template<typename T, int N, int M>
-[[nodiscard]] inline Matrix<T,N,M> operator+(const T &lhs, const Matrix<T,N,M> &rhs) { return lhs + rhs; }
+[[nodiscard]] inline Matrix<T,N,M> operator+(const T &lhs, const Matrix<T,N,M> &rhs) {
+    Matrix<T,N,M> r = rhs;
+    for(int i = 0; i < N*M; i++) { r.m_data[i] = lhs + rhs.m_data[i]; }
+    return r;
+}
 template<typename T, int N, int M>
 [[nodiscard]] inline Matrix<T,N,M> operator-(const T &lhs, const Matrix<T,N,M> &rhs) {
     Matrix<T,N,M> r = rhs;
@@ -299,7 +326,11 @@ template<typename T, int N, int M>
     return r;
 }
 template<typename T, int N, int M>
-[[nodiscard]] inline Matrix<T,N,M> operator*(const T &lhs, const Matrix<T,N,M> &rhs) { return lhs * rhs; }
+[[nodiscard]] inline Matrix<T,N,M> operator*(const T &lhs, const Matrix<T,N,M> &rhs) {
+    Matrix<T,N,M> r = rhs;
+    for(int i = 0; i < N*M; i++) { r.m_data[i] = lhs * rhs.m_data[i]; }
+    return r;
+}
 template<typename T, int N, int M>
 [[nodiscard]] inline Matrix<T,N,M> operator/(const T &lhs, const Matrix<T,N,M> &rhs) {
     Matrix<T,N,M> r = rhs;

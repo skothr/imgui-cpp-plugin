@@ -91,6 +91,19 @@ struct Vector {
 
     Vector& operator+=(const Vector &o) { for(int i = 0; i < N; i++) data[i] += o.data[i]; return *this; }
     Vector& operator-=(const Vector &o) { for(int i = 0; i < N; i++) data[i] -= o.data[i]; return *this; }
+    // Full arithmetic suite so the generic Vector<T,N> (N not 1/2/3/4) is usable:
+    // without these, binary +,-,*,/ and normalize() exist only in the named-member
+    // specializations and any Vector<T,5+> expression fails to compile.
+    Vector& operator*=(const Vector &o) { for(int i = 0; i < N; i++) data[i] *= o.data[i]; return *this; }
+    Vector& operator/=(const Vector &o) { for(int i = 0; i < N; i++) data[i] /= o.data[i]; return *this; }
+    Vector& operator*=(T s) { for(int i = 0; i < N; i++) data[i] *= s; return *this; }
+    Vector& operator/=(T s) { for(int i = 0; i < N; i++) data[i] /= s; return *this; }
+    [[nodiscard]] Vector operator+(const Vector &o) const { Vector r(*this); r += o; return r; }
+    [[nodiscard]] Vector operator-(const Vector &o) const { Vector r(*this); r -= o; return r; }
+    [[nodiscard]] Vector operator*(const Vector &o) const { Vector r(*this); r *= o; return r; }
+    [[nodiscard]] Vector operator/(const Vector &o) const { Vector r(*this); r /= o; return r; }
+    [[nodiscard]] Vector operator*(T s) const { Vector r(*this); r *= s; return r; }
+    [[nodiscard]] Vector operator/(T s) const { Vector r(*this); r /= s; return r; }
     Vector& operator%=(const T &s) {
         for(int i = 0; i < N; i++) {
             if constexpr(std::is_integral_v<T>) { data[i] %= s; }

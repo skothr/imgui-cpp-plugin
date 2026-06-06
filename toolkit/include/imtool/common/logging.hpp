@@ -29,6 +29,7 @@ public:
     void draw();
     void clear();
     void flush();
+    [[nodiscard]] std::size_t lineCount() const;
 
     template<typename T>
     Logger& operator<<(const T &arg);
@@ -43,6 +44,14 @@ public:
     void newline();
 
 private:
+    // Lock-free internals — the caller must already hold m_logLock. The public
+    // flush()/newline()/clear() acquire the lock once and delegate here, and
+    // operator<< (which holds the lock for the whole statement) calls
+    // newline_locked() directly. This removes the prior re-entrant-lock paths.
+    void emit_locked();
+    void newline_locked();
+    void clear_locked();
+
     struct LogLine {
         LogLevel    level = LogLevel::None;
         std::string text;
@@ -68,7 +77,7 @@ private:
     float m_maxScroll          = 0.0f;
 
     std::stack<LogLevel> m_levelStack;
-    std::mutex           m_logLock;
+    mutable std::mutex   m_logLock;
 };
 
 template<typename T>
@@ -79,7 +88,7 @@ Logger& Logger::operator<<(const T &arg) {
 
     if constexpr(std::is_same_v<std::decay_t<T>, LogLevel>) {
         if(arg != m_currentLevel) {
-            if(!m_lineStream.str().empty()) { newline(); }
+            if(!m_lineStream.str().empty()) { newline_locked(); }
             m_currentLevel = arg;
         }
     } else if constexpr(std::is_convertible_v<T, std::string>) {
@@ -91,7 +100,7 @@ Logger& Logger::operator<<(const T &arg) {
             std::string token;
             while(std::getline(ss, token, '\n')) {
                 m_lineStream << token;
-                newline();
+                newline_locked();
             }
         }
     } else {

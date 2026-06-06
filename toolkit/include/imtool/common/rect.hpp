@@ -96,13 +96,12 @@ struct Rect {
     [[nodiscard]] bool contains(const Rect &o) const {
         return (o.p1.x >= p1.x && o.p2.x <= p2.x && o.p1.y >= p1.y && o.p2.y <= p2.y);
     }
-    [[nodiscard]] bool intersects(const Rect &o) const {
-        return ((p1.x <= o.p1.x && p2.x >= o.p1.x) || (p1.x <= o.p2.x && p2.x >= o.p2.x) ||
-                (p1.y <= o.p1.y && p2.y >= o.p1.y) || (p1.y <= o.p2.y && p2.y >= o.p2.y));
-    }
     [[nodiscard]] bool overlaps(const Rect &o) const {
         return (p1.x <= o.p2.x && o.p1.x <= p2.x && p1.y <= o.p2.y && o.p1.y <= p2.y);
     }
+    // Synonym for overlaps() — a true AABB test (both axes must overlap). The
+    // previous per-axis-edge OR returned true for axis-aligned-but-disjoint rects.
+    [[nodiscard]] bool intersects(const Rect &o) const { return overlaps(o); }
     [[nodiscard]] Rect intersection(const Rect &o) const {
         return Rect(Point(std::max(p1.x, o.p1.x), std::max(p1.y, o.p1.y)),
                     Point(std::min(p2.x, o.p2.x), std::min(p2.y, o.p2.y)));

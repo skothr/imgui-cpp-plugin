@@ -33,21 +33,20 @@ namespace fs = std::filesystem;
         "/usr/local/share",
     };
     static const fs::path DEFAULT = "/usr/local/share";
-    static fs::path cached = "/";
 
-    if(cached == "/") {
+    // Resolve exactly once. A function-local static's initializer is guaranteed
+    // run-once and thread-safe (C++11 [stmt.dcl]/4), so concurrent first callers
+    // can't both enter the filesystem scan as they could with the old sentinel.
+    static const fs::path cached = []() -> fs::path {
         const fs::path home = getHomeDir();
         for(const auto &p : POSSIBILITIES) {
             std::string s = p.string();
             if(!s.empty() && s[0] == '~') { s = home.string() + s.substr(1); }
             const fs::path candidate = s;
-            if(fs::exists(candidate) && fs::is_directory(candidate)) {
-                cached = candidate;
-                break;
-            }
+            if(fs::exists(candidate) && fs::is_directory(candidate)) { return candidate; }
         }
-        if(cached == "/") { cached = DEFAULT; }
-    }
+        return DEFAULT;
+    }();
     return cached;
 }
 

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
@@ -11,7 +12,9 @@
 
 namespace imtool {
 
-static const std::string BAD_TYPE_NAME = "<badtype>";
+// constexpr string_view: one definition across TUs (a namespace-scope std::string
+// gives every translation unit its own copy).
+inline constexpr std::string_view BAD_TYPE_NAME = "<badtype>";
 
 inline std::unordered_map<std::type_index, std::string>& type_names() {
     static std::unordered_map<std::type_index, std::string> map = {
@@ -131,8 +134,8 @@ template<typename T>
 
 template<typename T>
 [[nodiscard]] inline int getTypeNumArgs() {
-    T t;
-    auto iter = type_nargs().find(std::type_index(typeid(t)));
+    // typeid(T) needs no object operand — avoids requiring T be default-constructible.
+    auto iter = type_nargs().find(std::type_index(typeid(T)));
     return (iter != type_nargs().end() ? iter->second : 0);
 }
 

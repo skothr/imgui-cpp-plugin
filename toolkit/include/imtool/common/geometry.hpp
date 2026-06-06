@@ -25,14 +25,15 @@ template<typename T>
     return Rect<T>(toCartesian(r.p1), toCartesian(r.p2));
 }
 
+// Standard linear interpolation: alpha=0 -> x0, alpha=1 -> x1.
 template<typename T, int N>
 [[nodiscard]] inline Vector<T, N> lerp(const Vector<T, N> &x0, const Vector<T, N> &x1, T alpha) {
-    return x0 * alpha + x1 * (T{1} - alpha);
+    return x0 * (T{1} - alpha) + x1 * alpha;
 }
 
 template<typename T>
 [[nodiscard]] inline T lerp(T x0, T x1, T alpha) {
-    return x0 * alpha + x1 * (T{1} - alpha);
+    return x0 * (T{1} - alpha) + x1 * alpha;
 }
 
 }
