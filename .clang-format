@@ -1,0 +1,9 @@
+# This repository's C/C++ is hand-formatted in a dense, column-aligned style
+# (see toolkit/include/imtool/common/*.hpp — aligned map initializers, single-
+# line accessors, attributes inline). No clang-format profile reproduces it
+# faithfully, so auto-formatting is disabled to keep diffs focused on real
+# changes. Match the surrounding style by hand when editing.
+#
+# To adopt an enforced style later, replace this with a real profile and reformat
+# the tree in one dedicated commit.
+DisableFormat: true
