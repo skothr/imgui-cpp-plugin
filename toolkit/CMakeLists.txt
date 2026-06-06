@@ -22,7 +22,11 @@ add_library(imtool STATIC
 )
 add_library(imtool::imtool ALIAS imtool)
 
-target_include_directories(imtool PUBLIC
+# SYSTEM so a consumer's strict flags (-Wall -Wextra -Wpedantic) don't fire on
+# the toolkit headers — e.g. the named-member union anonymous structs in
+# vector.hpp are a deliberate GNU extension. Same treatment the scaffold gives
+# the vendored ImGui headers. The toolkit's own build is warning-checked separately.
+target_include_directories(imtool SYSTEM PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
