@@ -12,6 +12,7 @@ set(IMTOOL_TEST_NAMES
   test_primitives
   test_logging
   test_imgui_ops
+  test_version
 )
 
 foreach(name ${IMTOOL_TEST_NAMES})
