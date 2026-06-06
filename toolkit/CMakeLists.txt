@@ -16,6 +16,9 @@ endif()
 add_library(imtool STATIC
   src/version.cpp
   src/common/logging.cpp
+  src/node/node_graph.cpp
+  src/node/node_graph_display.cpp
+  src/input/key_binding.cpp
 )
 add_library(imtool::imtool ALIAS imtool)
 
@@ -29,6 +32,34 @@ target_link_libraries(imtool PUBLIC
   imgui::imgui
   nlohmann_json::nlohmann_json
 )
+
+# ---------------------------------------------------------------------------
+# imtool_app — the Application layer. Pulls in GLFW + OpenGL + the ImGui
+# GLFW/OpenGL3 backends, so it is opt-in (OFF by default) to keep the core
+# `imtool` library backend-light (the smoke build and a consumer that only wants
+# the common types / nodegraph data model need not link GLFW/GL). A consumer
+# that wants Application (e.g. the bootstrap scaffold) sets -DIMTOOL_BUILD_APP=ON
+# and must provide an `imgui::imgui` target built WITH the GLFW + OpenGL3 backends
+# plus a `glfw` target and OpenGL.
+# ---------------------------------------------------------------------------
+option(IMTOOL_BUILD_APP "Build the imtool Application layer (needs GLFW + OpenGL + imgui backends)" OFF)
+if(IMTOOL_BUILD_APP)
+  add_library(imtool_app STATIC src/app/application.cpp)
+  add_library(imtool::app ALIAS imtool_app)
+  target_link_libraries(imtool_app PUBLIC imtool imgui::imgui)
+  if(NOT TARGET glfw)
+    find_package(glfw3 QUIET)
+  endif()
+  if(TARGET glfw)
+    target_link_libraries(imtool_app PUBLIC glfw)
+  else()
+    message(WARNING "IMTOOL_BUILD_APP=ON but no `glfw` target found; imtool_app will fail to link.")
+  endif()
+  find_package(OpenGL QUIET)
+  if(TARGET OpenGL::GL)
+    target_link_libraries(imtool_app PUBLIC OpenGL::GL)
+  endif()
+endif()
 
 option(IMTOOL_BUILD_EXAMPLES "Build imtool example apps (Epic H)" OFF)
 if(IMTOOL_BUILD_EXAMPLES AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/examples/CMakeLists.txt)

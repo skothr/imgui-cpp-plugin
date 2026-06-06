@@ -13,6 +13,9 @@ set(IMTOOL_TEST_NAMES
   test_logging
   test_imgui_ops
   test_version
+  test_nodegraph
+  test_keybindings
+  test_nodeview
 )
 
 foreach(name ${IMTOOL_TEST_NAMES})
