@@ -204,18 +204,29 @@ bool NodeGraphDisplay::handleCanvasInput(const Vec2f &p0) {
         m_draggingNode = false;
     }
 
+    // remember the right-click point for new-node placement (see drawContextMenu)
+    if(ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+        m_menuGraphPos = mouseGraph;
+    }
+
     // delete selected node
     if(m_focused && m_selected && ImGui::IsKeyPressed(ImGuiKey_Delete, false) && m_graph) {
-        m_graph->remove(m_selected);
+        Node *victim = m_selected;
+        // Null any transient pointer into the victim BEFORE remove() frees its
+        // connectors — a held port-drag (m_pendingFrom) persists across frames and
+        // would otherwise dangle into freed memory (use-after-free) on the next draw.
+        if(m_pendingFrom && m_pendingFrom->node() == victim) { m_pendingFrom = nullptr; }
+        if(m_hoveredPort && m_hoveredPort->node() == victim) { m_hoveredPort = nullptr; }
+        if(m_hovered == victim) { m_hovered = nullptr; }
         m_selected = nullptr;
+        m_graph->remove(victim);
         changed = true;
     }
 
-    (void)mouseGraph;
     return changed;
 }
 
-bool NodeGraphDisplay::drawContextMenu(const Vec2f &p0) {
+bool NodeGraphDisplay::drawContextMenu() {
     bool added = false;
     if(ImGui::BeginPopupContextWindow("##imtool-nodegraph-ctx")) {
         if(m_graph && m_graph->registry()) {
@@ -225,9 +236,9 @@ bool NodeGraphDisplay::drawContextMenu(const Vec2f &p0) {
                 if(ImGui::MenuItem(type.c_str())) {
                     Node *n = m_graph->create(type);
                     if(n) {
-                        // place near the cursor where the menu opened
-                        const Vec2f mouseRel = fromImVec(ImGui::GetMousePos()) - p0;
-                        n->setPos(screenToGraph(mouseRel));
+                        // place at the graph point where the user right-clicked (the
+                        // live cursor is now over the menu item, not the canvas)
+                        n->setPos(m_menuGraphPos);
                         select(n);
                         added = true;
                     }
@@ -271,7 +282,7 @@ bool NodeGraphDisplay::draw(const Vec2f &size) {
         for(Node *n : m_order) { drawNode(n, p0); }
 
         changed |= handleCanvasInput(p0);
-        changed |= drawContextMenu(p0);
+        changed |= drawContextMenu();
     }
     ImGui::EndChild();
     ImGui::PopStyleVar();

@@ -113,5 +113,22 @@ int main() {
         CHECK_NEAR(xr->pos().y, 34.0f, 1e-4);
     }
 
+    // --- malformed JSON degrades gracefully (no crash/throw) ---
+    // Regression for the adversarial-review findings: fromJson must log+skip bad
+    // input, never dereference a missing key (UB) or let a type_error escape.
+    {
+        using nlohmann::json;
+        NodeGraph m(&reg);
+        CHECK(!m.fromJson(json::array()));                       // non-object root
+        CHECK(!m.fromJson(json{{"nodes", 5}}));                  // "nodes" not an array
+        CHECK(m.fromJson(json{{"nodes", json::array()}}));        // empty graph is valid
+        // non-object/unknown node entries skipped; edges with missing/garbled keys skipped
+        CHECK(m.fromJson(json::parse(
+            R"({"nodes":[5,"x",{}],"edges":[{},{"from":5},{"from":{"node":0},"to":{"node":1}}]})")));
+        // wrong-typed reserved field caught per-entry, not thrown
+        CHECK(m.fromJson(json::parse(R"({"nodes":[{"type":"Float","id":"notint"}]})")));
+        CHECK(m.nodeCount() == 0);   // that node was skipped, nothing wired
+    }
+
     return imtest::report();
 }

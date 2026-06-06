@@ -72,6 +72,12 @@ public:
     using ColVector = Vector<T, N>;
 
 private:
+    // NOTE: m_data (flat) and m_columns (column-major view) are read/written
+    // interchangeably. For N>=2, ColVector is non-trivial, so reading the inactive
+    // member is strictly [class.union] UB — it works because GCC documents union
+    // type-punning as an extension (verified correct + UBSan-clean on the g++12
+    // target). Non-portable to Clang/MSVC/LTO. Canonicalizing on one member is
+    // tracked post-beta; do not rely on this layout off the documented toolchain.
     union {
         std::array<T, N*M> m_data;
         std::array<ColVector, M> m_columns;
@@ -363,28 +369,31 @@ inline std::ostream& operator<<(std::ostream &os, const Matrix<T,N,M> &mat) {
 
 template<typename T, int N, int M>
 inline std::istream& operator>>(std::istream &is, Matrix<T,N,M> &mat) {
+    // Reads N*M whitespace-separated values in row-major (r,c) order via operator().
+    // NOTE: this does not parse operator<<'s decorated box form (that is a human
+    // display); use to_json/from_json for exact serialization round-trips.
     for(int r = 0; r < N; r++)
-        for(int c = 0; c < M; c++) {
-            is >> mat[r][c];
-            is.ignore((r != N-1 || c != M-1) ? ((c == M-1) ? 5 : 1) : 1);
-        }
+        for(int c = 0; c < M; c++) { is >> mat(r, c); }
     return is;
 }
 
+// JSON nests as row-major [[row0...],[row1...]]: js[r][c] == element (row r, col c),
+// matching operator()/operator<<. (Index via operator(), not operator[], which is
+// column-major and would transpose.)
 template<typename T, int N, int M>
 inline void to_json(nlohmann::json &js, const Matrix<T,N,M> &mat) {
     js = nlohmann::json::array();
-    for(int i = 0; i < N; i++) {
+    for(int r = 0; r < N; r++) {
         nlohmann::json row = nlohmann::json::array();
-        for(int j = 0; j < M; j++) { row.push_back(mat[i][j]); }
+        for(int c = 0; c < M; c++) { row.push_back(mat(r, c)); }
         js.push_back(row);
     }
 }
 template<typename T, int N, int M>
 inline void from_json(const nlohmann::json &js, Matrix<T,N,M> &mat) {
-    for(int i = 0; i < N; i++)
-        for(int j = 0; j < M; j++)
-            { mat[i][j] = js[i][j]; }
+    for(int r = 0; r < N; r++)
+        for(int c = 0; c < M; c++)
+            { mat(r, c) = js[r][c]; }
 }
 
 }

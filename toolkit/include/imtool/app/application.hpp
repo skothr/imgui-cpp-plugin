@@ -110,6 +110,8 @@ private:
     bool          m_running      = false;
     GLFWwindow   *m_window       = nullptr;
     ImGuiContext *m_imguiContext = nullptr;
+    bool          m_glfwBackend  = false;   // ImGui_ImplGlfw_InitForOpenGL succeeded (shutdown gate)
+    bool          m_gl3Backend   = false;   // ImGui_ImplOpenGL3_Init succeeded (shutdown gate)
     float         m_mainScale    = 1.0f;
     double        m_lastTime     = 0.0;
     float         m_deltaTime    = 0.0f;

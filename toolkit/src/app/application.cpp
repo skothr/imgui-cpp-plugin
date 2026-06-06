@@ -71,8 +71,7 @@ AppStatus Application::initWindow() {
                                 m_config.title.c_str(), nullptr, nullptr);
     if(!m_window) {
         log() << LogLevel::Error << "Application: glfwCreateWindow failed"; log().flush();
-        glfwTerminate();
-        return AppStatus::WindowFailed;
+        return AppStatus::WindowFailed;   // create() calls cleanWindow() -> glfwTerminate() on the error path
     }
     glfwMakeContextCurrent(m_window);
     if(!glfwGetCurrentContext()) {
@@ -119,10 +118,12 @@ AppStatus Application::initImGui() {
         log() << LogLevel::Error << "Application: ImGui_ImplGlfw_InitForOpenGL failed"; log().flush();
         return AppStatus::BackendInitFailed;
     }
+    m_glfwBackend = true;
     if(!ImGui_ImplOpenGL3_Init(m_config.glslVersion.c_str())) {
         log() << LogLevel::Error << "Application: ImGui_ImplOpenGL3_Init failed"; log().flush();
-        return AppStatus::BackendInitFailed;
+        return AppStatus::BackendInitFailed;   // cleanImGui shuts down only the GLFW backend, not GL3
     }
+    m_gl3Backend = true;
     return AppStatus::Ok;
 }
 
@@ -183,16 +184,16 @@ int Application::run() {
 
 void Application::requestQuit() noexcept {
     m_running = false;
-    glfwPostEmptyEvent();
+    if(m_window) { glfwPostEmptyEvent(); }   // avoid GLFW_NOT_INITIALIZED if called before create()/after destroy()
 }
 
 void Application::cleanImGui() noexcept {
-    if(m_imguiContext) {
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext(m_imguiContext);
-        m_imguiContext = nullptr;
-    }
+    // Shut down each backend only if its init actually succeeded. On the
+    // BackendInitFailed path (GLFW backend up, GL3 backend not), shutting down the
+    // GL3 backend that was never initialized is a crash/UB.
+    if(m_gl3Backend)  { ImGui_ImplOpenGL3_Shutdown(); m_gl3Backend  = false; }
+    if(m_glfwBackend) { ImGui_ImplGlfw_Shutdown();    m_glfwBackend = false; }
+    if(m_imguiContext) { ImGui::DestroyContext(m_imguiContext); m_imguiContext = nullptr; }
 }
 
 void Application::cleanWindow() noexcept {

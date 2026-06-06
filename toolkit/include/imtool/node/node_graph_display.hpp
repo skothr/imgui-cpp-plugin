@@ -74,7 +74,7 @@ private:
     void drawNodeEdges(const Node *n, const Vec2f &p0) const;         // output-side only (no dupes)
     void drawBezier(const Vec2f &aScreen, const Vec2f &bScreen, unsigned col, float thickness) const;
     bool handleCanvasInput(const Vec2f &p0);                          // pan/zoom/select/delete; true if changed
-    bool drawContextMenu(const Vec2f &p0);                            // right-click "Add Node" palette
+    bool drawContextMenu();                                           // right-click "Add Node" palette
 
     NodeGraph         *m_graph   = nullptr;
     std::vector<Node*> m_order;                  // draw order (back-to-front); synced to graph
@@ -91,6 +91,7 @@ private:
     Connector  *m_hoveredPort = nullptr;          // recomputed each frame
     Connector  *m_pendingFrom = nullptr;          // in-progress connection drag source
     bool        m_draggingNode = false;
+    Vec2f       m_menuGraphPos {0, 0};             // graph point of the last right-click (new-node placement)
 
     // appearance (graph units; scaled at draw time)
     static constexpr float kPortRadius  = 5.0f;

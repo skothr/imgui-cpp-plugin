@@ -17,8 +17,14 @@ void NodeGraph::rebuildNodeView() {
 
 Node* NodeGraph::add(std::unique_ptr<Node> node) {
     if(!node) { return nullptr; }
-    if(node->m_id < 0) { node->m_id = m_nextId++; }
-    else               { m_nextId = std::max(m_nextId, node->m_id + 1); }
+    if(node->m_id < 0) {
+        node->m_id = m_nextId++;
+    } else if(find(node->m_id)) {            // restored/explicit id collides — reassign so find() stays unambiguous
+        log() << LogLevel::Warning << "NodeGraph::add: duplicate node id " << node->m_id << "; reassigning"; log().flush();
+        node->m_id = m_nextId++;
+    } else {
+        m_nextId = std::max(m_nextId, node->m_id + 1);
+    }
     Node *raw = node.get();
     m_nodes.push_back(std::move(node));
     rebuildNodeView();
@@ -169,7 +175,9 @@ nlohmann::json NodeGraph::toJson() const {
         jn["type"] = std::string(n->typeName());
         jn["name"] = std::string(n->name());
         jn["pos"]  = n->pos();           // to_json(Vec2f) from vector.hpp
-        n->saveParams(jn);               // subclass merges its own params
+        nlohmann::json params;           // subclass params go in their own object so a param
+        n->saveParams(params);           // named "id"/"type"/"name"/"pos" can't clobber the reserved keys
+        if(!params.is_null() && !params.empty()) { jn["params"] = std::move(params); }
         js["nodes"].push_back(jn);
     }
     js["edges"] = nlohmann::json::array();
@@ -188,8 +196,8 @@ nlohmann::json NodeGraph::toJson() const {
 }
 
 bool NodeGraph::fromJson(const nlohmann::json &js) {
-    if(!js.is_object() || !js.contains("nodes")) {
-        log() << LogLevel::Error << "NodeGraph::fromJson: malformed root"; log().flush();
+    if(!js.is_object() || !js.contains("nodes") || !js["nodes"].is_array()) {
+        log() << LogLevel::Error << "NodeGraph::fromJson: malformed root (need an object with a \"nodes\" array)"; log().flush();
         return false;
     }
     if(!m_registry) {
@@ -198,41 +206,62 @@ bool NodeGraph::fromJson(const nlohmann::json &js) {
     }
     clear();
 
-    // pass 1: create nodes, restoring exact ids (so edges resolve).
+    // pass 1: create nodes, restoring exact ids (so edges resolve). Malformed
+    // entries are logged + skipped, never thrown (the documented contract): shape
+    // checks guard the const operator[] paths, and a per-entry catch backstops any
+    // nlohmann type_error from .value()/.get() on a wrong-typed field.
     for(const auto &jn : js["nodes"]) {
-        const std::string type = jn.value("type", std::string{});
-        std::unique_ptr<Node> node = m_registry->create(type);
-        if(!node) {
-            log() << LogLevel::Warning << "NodeGraph::fromJson: skipping unknown type '" << type << "'"; log().flush();
-            continue;
+        try {
+            if(!jn.is_object()) {
+                log() << LogLevel::Warning << "NodeGraph::fromJson: skipping non-object node entry"; log().flush();
+                continue;
+            }
+            const std::string type = jn.value("type", std::string{});
+            std::unique_ptr<Node> node = m_registry->create(type);
+            if(!node) {
+                log() << LogLevel::Warning << "NodeGraph::fromJson: skipping unknown type '" << type << "'"; log().flush();
+                continue;
+            }
+            node->m_id = jn.value("id", -1);
+            node->setName(jn.value("name", std::string{}));
+            if(jn.contains("pos") && jn["pos"].is_array() && jn["pos"].size() >= 2) { node->setPos(jn["pos"].get<Vec2f>()); }
+            if(jn.contains("params")) { node->loadParams(jn["params"]); }   // namespaced sub-object (no key collision)
+            add(std::move(node));
+        } catch(const nlohmann::json::exception &e) {
+            log() << LogLevel::Warning << "NodeGraph::fromJson: skipping bad node entry: " << e.what(); log().flush();
         }
-        node->m_id = jn.value("id", -1);
-        node->setName(jn.value("name", std::string{}));
-        if(jn.contains("pos")) { node->setPos(jn["pos"].get<Vec2f>()); }
-        node->loadParams(jn);
-        add(std::move(node));
     }
 
-    // pass 2: rewire edges via connect() (re-validates type/cycle/dup).
-    if(js.contains("edges")) {
+    // pass 2: rewire edges via connect() (re-validates type/cycle/dup). Each edge
+    // is shape-checked before indexing so missing/wrong-typed keys skip, not crash.
+    if(js.contains("edges") && js["edges"].is_array()) {
         for(const auto &je : js["edges"]) {
-            Node *fn = find(je["from"].value("node", -1));
-            Node *tn = find(je["to"].value("node", -1));
-            if(!fn || !tn) {
-                log() << LogLevel::Warning << "NodeGraph::fromJson: dropping edge to missing node"; log().flush();
-                continue;
+            try {
+                if(!je.is_object() || !je.contains("from") || !je.contains("to") ||
+                   !je["from"].is_object() || !je["to"].is_object()) {
+                    log() << LogLevel::Warning << "NodeGraph::fromJson: dropping malformed edge"; log().flush();
+                    continue;
+                }
+                Node *fn = find(je["from"].value("node", -1));
+                Node *tn = find(je["to"].value("node", -1));
+                if(!fn || !tn) {
+                    log() << LogLevel::Warning << "NodeGraph::fromJson: dropping edge to missing node"; log().flush();
+                    continue;
+                }
+                const int fp = je["from"].value("port", -1);
+                const int tp = je["to"].value("port", -1);
+                if(fp < 0 || tp < 0 || fp >= static_cast<int>(fn->outputCount()) || tp >= static_cast<int>(tn->inputCount())) {
+                    log() << LogLevel::Warning << "NodeGraph::fromJson: dropping edge with bad port index"; log().flush();
+                    continue;
+                }
+                connect(fn->output(fp), tn->input(tp));
+            } catch(const nlohmann::json::exception &e) {
+                log() << LogLevel::Warning << "NodeGraph::fromJson: skipping bad edge entry: " << e.what(); log().flush();
             }
-            const int fp = je["from"].value("port", -1);
-            const int tp = je["to"].value("port", -1);
-            if(fp < 0 || tp < 0 || fp >= static_cast<int>(fn->outputCount()) || tp >= static_cast<int>(tn->inputCount())) {
-                log() << LogLevel::Warning << "NodeGraph::fromJson: dropping edge with bad port index"; log().flush();
-                continue;
-            }
-            connect(fn->output(fp), tn->input(tp));
         }
     }
 
-    if(js.contains("nextId")) { m_nextId = std::max(m_nextId, js["nextId"].get<int>()); }
+    if(js.contains("nextId") && js["nextId"].is_number_integer()) { m_nextId = std::max(m_nextId, js["nextId"].get<int>()); }
     return true;
 }
 

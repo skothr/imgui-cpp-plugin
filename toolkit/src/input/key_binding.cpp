@@ -140,7 +140,11 @@ void KeyBindingManager::cancelRecording() { m_recording.reset(); }
 bool KeyBindingManager::updateRecording() {
     if(!m_recording) { return false; }
     if(ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { m_recording.reset(); return true; }
-    for(int k = ImGuiKey_NamedKey_BEGIN; k < ImGuiKey_NamedKey_END; ++k) {
+    // Scan only real keyboard keys: [NamedKey_BEGIN, GamepadStart) — everything at
+    // or after GamepadStart is a gamepad / mouse (MouseLeft..MouseWheelY) / reserved-
+    // mod alias, and capturing one of those as the bound key yields a dead or
+    // surprising (e.g. mouse-click-fires-action) binding.
+    for(int k = ImGuiKey_NamedKey_BEGIN; k < ImGuiKey_GamepadStart; ++k) {
         const ImGuiKey key = static_cast<ImGuiKey>(k);
         if(isModifierKey(key)) { continue; }
         if(ImGui::IsKeyPressed(key, false)) {

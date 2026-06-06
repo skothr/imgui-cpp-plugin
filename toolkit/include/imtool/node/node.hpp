@@ -79,17 +79,24 @@ public:
 
     [[nodiscard]] std::size_t inputCount()  const { return m_inputs.size(); }
     [[nodiscard]] std::size_t outputCount() const { return m_outputs.size(); }
-    [[nodiscard]] Connector*  input(int i)  const { return m_inputs[static_cast<std::size_t>(i)].get(); }
-    [[nodiscard]] Connector*  output(int i) const { return m_outputs[static_cast<std::size_t>(i)].get(); }
+    // Bounds-checked: out-of-range (incl. negative) returns nullptr rather than UB.
+    [[nodiscard]] Connector*  input(int i)  const {
+        return (i >= 0 && static_cast<std::size_t>(i) < m_inputs.size())  ? m_inputs[static_cast<std::size_t>(i)].get()  : nullptr;
+    }
+    [[nodiscard]] Connector*  output(int i) const {
+        return (i >= 0 && static_cast<std::size_t>(i) < m_outputs.size()) ? m_outputs[static_cast<std::size_t>(i)].get() : nullptr;
+    }
 
     // Synchronous evaluation hook (the beta stub). Subclasses do real work and
     // return false on failure. The graph topo-walks and calls this in order.
     // DEFERRED: async/worker-thread execution, cancellation, data propagation.
     virtual bool evaluate() { return true; }
 
-    // JSON param hooks for subclass-specific state (graph save/load merges these).
-    virtual void saveParams(nlohmann::json & /*js*/) const {}
-    virtual void loadParams(const nlohmann::json & /*js*/) {}
+    // JSON param hooks for subclass-specific state. The graph passes a dedicated
+    // per-node "params" sub-object (NOT the node's top-level object), so a param
+    // named "id"/"type"/"name"/"pos" cannot collide with the reserved node keys.
+    virtual void saveParams(nlohmann::json & /*params*/) const {}
+    virtual void loadParams(const nlohmann::json & /*params*/) {}
 
 protected:
     template<typename T>

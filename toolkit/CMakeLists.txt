@@ -62,6 +62,10 @@ if(IMTOOL_BUILD_APP)
   find_package(OpenGL QUIET)
   if(TARGET OpenGL::GL)
     target_link_libraries(imtool_app PUBLIC OpenGL::GL)
+  else()
+    # application.cpp calls glViewport/glClear/glClearColor/glEnable — without GL,
+    # main would fail at link with a cryptic undefined-reference. Fail here instead.
+    message(FATAL_ERROR "IMTOOL_BUILD_APP=ON requires OpenGL (OpenGL::GL not found). Install an OpenGL dev package or provide the target.")
   endif()
 endif()
 
