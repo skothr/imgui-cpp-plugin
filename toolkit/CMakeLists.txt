@@ -57,7 +57,9 @@ if(IMTOOL_BUILD_APP)
   if(TARGET glfw)
     target_link_libraries(imtool_app PUBLIC glfw)
   else()
-    message(WARNING "IMTOOL_BUILD_APP=ON but no `glfw` target found; imtool_app will fail to link.")
+    # Fail fast at configure time (symmetric with the OpenGL check below) rather
+    # than letting the build reach a cryptic undefined-reference to glfwInit etc.
+    message(FATAL_ERROR "IMTOOL_BUILD_APP=ON requires GLFW (no `glfw` target found). Install libglfw3-dev or provide a `glfw` target.")
   endif()
   find_package(OpenGL QUIET)
   if(TARGET OpenGL::GL)
