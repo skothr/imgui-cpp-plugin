@@ -154,19 +154,32 @@ For anything more involved (tables, drag-drop, custom widgets, modals, etc.), lo
 | Asset | Purpose |
 |---|---|
 | `assets/imscoped.hpp` | Drop-in RAII scope guards for every Begin/End and Push/Pop pair. Header-only, depends only on `<imgui.h>`. |
-| `assets/main_glfw_opengl3.cpp.template` | C++23 main-loop template using imscoped.hpp; OpenGL 3 + GLFW + docking + multi-viewport + per-monitor DPI. |
-| `assets/CMakeLists-glfw-opengl3.txt.template` | CMake project that fetches Dear ImGui v1.92.7-docking + GLFW 3.4 via FetchContent and builds them as a static lib. Emits `compile_commands.json`. |
+| `assets/CMakeLists-imtool-glfw-opengl3.txt.template` | **Default scaffold.** CMake that fetches Dear ImGui, GLFW, nlohmann/json, and the imtool toolkit (`IMTOOL_BUILD_APP=ON`); links `imtool::app`. |
+| `assets/main_imtool_glfw_opengl3.cpp.template` | **Default scaffold.** C++23 `main` subclassing `imtool::Application` with a live NodeGraph view + KeyBindingManager. |
+| `assets/CMakeLists-glfw-opengl3.txt.template` | `--minimal` scaffold. CMake that fetches only Dear ImGui v1.92.7-docking + GLFW 3.4 via FetchContent (no toolkit). Emits `compile_commands.json`. |
+| `assets/main_glfw_opengl3.cpp.template` | `--minimal` scaffold. Bare C++23 main-loop using imscoped.hpp; OpenGL 3 + GLFW + docking + multi-viewport + per-monitor DPI; no toolkit dependency. |
 | `assets/imgui_test_skeleton.cpp.template` | imgui_test_engine harness; supports both interactive and `--headless` CI modes. |
 
 When recommending a setup, copy the relevant template to the user's project rather than typing one from memory.
 
-**Source assets from `$CLAUDE_PLUGIN_ROOT`, never from `~/.claude/plugins/cache/...`.** Claude Code sets `$CLAUDE_PLUGIN_ROOT` to the live source root of the currently-loaded plugin — whether the plugin was loaded via `--plugin-dir`, user-scope install, project install, or marketplace cache. The canonical copy command is:
+**Source assets from `$CLAUDE_PLUGIN_ROOT`, never from `~/.claude/plugins/cache/...`.** Claude Code sets `$CLAUDE_PLUGIN_ROOT` to the live source root of the currently-loaded plugin — whether the plugin was loaded via `--plugin-dir`, user-scope install, project install, or marketplace cache.
+
+The **default** scaffold is toolkit-wired (subclasses `imtool::Application`, wires a NodeGraph + KeyBindings so a fresh project builds, runs, and shows the toolkit):
+
+```bash
+cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/CMakeLists-imtool-glfw-opengl3.txt.template" <dest>/CMakeLists.txt
+cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/main_imtool_glfw_opengl3.cpp.template" <dest>/src/main.cpp
+```
+
+The `--minimal` scaffold is a bare ImGui frame loop with no toolkit dependency:
 
 ```bash
 cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/imscoped.hpp" <dest>/
 cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/main_glfw_opengl3.cpp.template" <dest>/src/main.cpp
 cp "$CLAUDE_PLUGIN_ROOT/skills/imgui-cpp-development/assets/CMakeLists-glfw-opengl3.txt.template" <dest>/CMakeLists.txt
 ```
+
+See [references/bootstrap.md](references/bootstrap.md) for the graphics-backend argument and the toolkit-vs-`--minimal` decision.
 
 The path under `~/.claude/plugins/cache/` is a snapshot from the last marketplace install. It can be stale by hours, days, or weeks compared to the live source — and an agent that copies from it ships outdated templates to the user's project. `$CLAUDE_PLUGIN_ROOT` is the only path that's guaranteed fresh for the active session.
 
