@@ -77,6 +77,7 @@ These features were deliberately excluded from Epic A's lift and have explicit r
 
 - **CUDA shims** (`float2`/`float3`/`float4` interop, `__NVCC__` modulo guards). Deferred to a CUDA-integration ticket; lifts back when a downstream consumer wires CUDA into a NodeGraph pipeline.
 - **Vector swizzles** (`.xy()`, `.xyz()`, `.xxx()`, etc., ~120 generated methods). YAGNI — zero grep hits in 19-logos's own code. Not re-engaged unless a concrete use case appears.
+- **Geometry line/line + rect/line intersection** (`intersects()`/`intersection()` for segment-vs-segment and segment-vs-rect, from `03-astrolograph/inc/base/geometry.hpp`). Not lifted: the toolkit's `geometry.hpp` carries only `lerp` + polar conversions, and `NodeGraphDisplay` draws bezier edges, not the orthogonal/right-angle routing that consumed these in astrolograph. Re-engagement trigger: lifts back if `NodeGraphDisplay` gains orthogonal edge routing. (Note: rect/rect AABB `intersects`/`intersection` *are* present, in `rect.hpp`.)
 
 ## Lifted-from index — Epic A common/
 
@@ -89,7 +90,7 @@ Each toolkit header maps to a prior-art source. Modernization is at the surface 
 | `include/imtool/common/matrix.hpp` | `19-logos/include/matrix.hpp` (sans CUDA) |
 | `include/imtool/common/type_registry.hpp` | `19-logos/include/types.hpp` (registry + `getTypeIndex<T>`) |
 | `include/imtool/common/imgui_ops.hpp` | `19-logos/include/imtools.hpp:25-56` (full free-operator suite, implicit conversion) |
-| `include/imtool/common/geometry.hpp` | `astrolograph-old/inc/geometry.hpp` (`lerp` + polar conversions accidentally orphaned in 19-logos lineage) |
+| `include/imtool/common/geometry.hpp` | `astrolograph-old/inc/geometry.hpp` (`lerp` + polar conversions accidentally orphaned in 19-logos lineage). The richer `03-astrolograph/inc/base/geometry.hpp` line/line + rect/line `intersects`/`intersection` were intentionally *not* lifted — see Carve-outs above. |
 | `include/imtool/common/range.hpp` | `03-astrolograph/inc/base/range.hpp` (`Range<T>` with contains/clip/span/extend/fit) |
 | `include/imtool/common/colors.hpp` | `03-astrolograph/inc/base/colors.hpp` (X11/CSS4 named colors) |
 | `include/imtool/common/timing.hpp` | `19-logos/include/utils.hpp` (`getTimestamp`) |

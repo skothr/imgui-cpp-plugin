@@ -8,7 +8,11 @@
 //
 // Deferred (post-beta): Houdini closer-endpoint edge editing, multi-select +
 // rubber-band, node-settings auto-inspector, minimap, measured node bodies with
-// live widgets, view-state persistence, keybinding integration.
+// live widgets, view-state persistence, keybinding integration, copy-paste,
+// palette node categories (the add-node menu lists types flat). Behavior change
+// from heritage (19-logos / astrolograph): dragging onto an already-wired input
+// is REJECTED here (inputs are exclusive; see NodeGraph::connect) — heritage
+// auto-disconnected the old link and rewired. Beta callers must disconnect first.
 //
 // Coordinate model: m_scale = graph-units per screen-pixel; m_center = the graph
 // point shown at the canvas center. POINT transforms apply pan+zoom; VECTOR

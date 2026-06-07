@@ -96,7 +96,9 @@ bool NodeGraph::canConnect(const Connector *out, const Connector *in) const {
     if(!out->isOutput() || !in->isInput())   { return false; }   // direction
     if(out->node() == in->node())            { return false; }   // no self-loop
     if(out->type() != in->type())            { return false; }   // exact type match
-    if(in->connected())                      { return false; }   // exclusive input (caller disconnects first)
+    if(in->connected())                      { return false; }   // exclusive input: rejected if already wired. The bundled
+                                                                  // NodeGraphDisplay does NOT auto-disconnect first, so the
+                                                                  // drag-onto-occupied-input gesture no-ops (heritage rewired).
     if(std::find(out->m_links.begin(), out->m_links.end(), in) != out->m_links.end()) { return false; }  // dup
     if(reaches(in->node(), out->node()))     { return false; }   // would close a cycle
     return true;
