@@ -39,7 +39,21 @@ enum class AppStatus : int {
     UserInitFailed    = 7,
 };
 
-[[nodiscard]] const char* toString(AppStatus s) noexcept;
+// Inline (header-only) so the pure enum->string mapping is usable + testable
+// without linking the Application .cpp (which pulls in GLFW/GL).
+[[nodiscard]] inline const char* toString(AppStatus s) noexcept {
+    switch(s) {
+        case AppStatus::Ok:                return "Ok";
+        case AppStatus::AlreadyCreated:    return "AlreadyCreated";
+        case AppStatus::GlfwInitFailed:    return "GlfwInitFailed";
+        case AppStatus::WindowFailed:      return "WindowFailed";
+        case AppStatus::ContextFailed:     return "ContextFailed";
+        case AppStatus::ImGuiInitFailed:   return "ImGuiInitFailed";
+        case AppStatus::BackendInitFailed: return "BackendInitFailed";
+        case AppStatus::UserInitFailed:    return "UserInitFailed";
+    }
+    return "Unknown";
+}
 
 // Plain config aggregate. Docking/viewports are supported but OFF by default.
 struct AppConfig {

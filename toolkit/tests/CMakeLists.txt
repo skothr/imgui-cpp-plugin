@@ -17,6 +17,7 @@ set(IMTOOL_TEST_NAMES
   test_keybindings
   test_nodeview
   test_integration
+  test_app_status
 )
 
 foreach(name ${IMTOOL_TEST_NAMES})

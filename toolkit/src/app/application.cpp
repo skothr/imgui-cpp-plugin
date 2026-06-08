@@ -9,19 +9,8 @@
 
 namespace imtool {
 
-const char* toString(AppStatus s) noexcept {
-    switch(s) {
-        case AppStatus::Ok:                return "Ok";
-        case AppStatus::AlreadyCreated:    return "AlreadyCreated";
-        case AppStatus::GlfwInitFailed:    return "GlfwInitFailed";
-        case AppStatus::WindowFailed:      return "WindowFailed";
-        case AppStatus::ContextFailed:     return "ContextFailed";
-        case AppStatus::ImGuiInitFailed:   return "ImGuiInitFailed";
-        case AppStatus::BackendInitFailed: return "BackendInitFailed";
-        case AppStatus::UserInitFailed:    return "UserInitFailed";
-    }
-    return "Unknown";
-}
+// toString(AppStatus) is now an inline function in application.hpp (header-only,
+// so it is usable/testable without linking this GLFW/GL translation unit).
 
 Application::Application(AppConfig config) : m_config(std::move(config)) {}
 Application::~Application() { destroy(); }

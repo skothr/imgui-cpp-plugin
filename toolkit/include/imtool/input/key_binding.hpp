@@ -48,6 +48,25 @@ struct KeyChord {
 inline void to_json(nlohmann::json &js, const KeyChord &c) { js = c.chord; }
 inline void from_json(const nlohmann::json &js, KeyChord &c) { c.chord = js.get<ImGuiKeyChord>(); }
 
+// The 8 keyboard modifier aliases — captured as a chord's mod mask, never as the
+// bound key itself.
+[[nodiscard]] inline bool isModifierKey(ImGuiKey k) {
+    return k == ImGuiKey_LeftCtrl  || k == ImGuiKey_RightCtrl  ||
+           k == ImGuiKey_LeftShift || k == ImGuiKey_RightShift ||
+           k == ImGuiKey_LeftAlt   || k == ImGuiKey_RightAlt   ||
+           k == ImGuiKey_LeftSuper || k == ImGuiKey_RightSuper;
+}
+
+// True for keys that may be CAPTURED as a binding while recording: a real named
+// keyboard key, excluding the modifier aliases. Everything at/after
+// ImGuiKey_GamepadStart (gamepad, then mouse buttons, then reserved-mod aliases)
+// is excluded — binding one yields a dead or surprising (mouse-fires-action)
+// shortcut. Pure (no ImGui IO), so the recording-range policy is unit-testable
+// without a live frame (the loop in updateRecording uses it).
+[[nodiscard]] inline bool isRecordableKey(ImGuiKey key) {
+    return key >= ImGuiKey_NamedKey_BEGIN && key < ImGuiKey_GamepadStart && !isModifierKey(key);
+}
+
 // One named action with its current + default chord.
 struct KeyBinding {
     std::string           action;          // stable id / map key, e.g. "edit.undo"

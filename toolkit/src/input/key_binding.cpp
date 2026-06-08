@@ -122,15 +122,8 @@ int KeyBindingManager::poll() {
 }
 
 // --- recording ---------------------------------------------------------------
-
-namespace {
-[[nodiscard]] bool isModifierKey(ImGuiKey k) {
-    return k == ImGuiKey_LeftCtrl  || k == ImGuiKey_RightCtrl  ||
-           k == ImGuiKey_LeftShift || k == ImGuiKey_RightShift ||
-           k == ImGuiKey_LeftAlt   || k == ImGuiKey_RightAlt   ||
-           k == ImGuiKey_LeftSuper || k == ImGuiKey_RightSuper;
-}
-}  // namespace
+// The recordable-key predicate (isRecordableKey / isModifierKey) now lives in the
+// header so it can be unit-tested without a live ImGui frame (MAIN-380).
 
 void KeyBindingManager::beginRecording(std::string_view action) {
     if(findBinding(action)) { m_recording = std::string(action); }
@@ -146,7 +139,7 @@ bool KeyBindingManager::updateRecording() {
     // surprising (e.g. mouse-click-fires-action) binding.
     for(int k = ImGuiKey_NamedKey_BEGIN; k < ImGuiKey_GamepadStart; ++k) {
         const ImGuiKey key = static_cast<ImGuiKey>(k);
-        if(isModifierKey(key)) { continue; }
+        if(!isRecordableKey(key)) { continue; }
         if(ImGui::IsKeyPressed(key, false)) {
             rebind(*m_recording, KeyChord(key, ImGui::GetIO().KeyMods & ImGuiMod_Mask_));
             m_recording.reset();

@@ -60,5 +60,18 @@ int main() {
     CHECK(km2.find("edit.undo")->chord.key() == ImGuiKey_Z);   // unchanged by load
     CHECK(!km2.loadJson(nlohmann::json::array()));             // non-object root rejected
 
+    // MAIN-380: the recording-range predicate is now a pure header function, so the
+    // policy (which keys may be captured as a binding) is testable without a frame.
+    CHECK(isRecordableKey(ImGuiKey_A));            // real named key
+    CHECK(isRecordableKey(ImGuiKey_Escape));       // named key (updateRecording treats it as cancel separately)
+    CHECK(isRecordableKey(ImGuiKey_F5));
+    CHECK(!isRecordableKey(ImGuiKey_LeftCtrl));    // modifier alias -> captured as the mod mask, not the key
+    CHECK(!isRecordableKey(ImGuiKey_RightSuper));
+    CHECK(!isRecordableKey(ImGuiKey_None));        // below NamedKey_BEGIN
+    CHECK(!isRecordableKey(ImGuiKey_GamepadStart)); // gamepad block
+    CHECK(!isRecordableKey(ImGuiKey_MouseLeft));    // mouse button (binding it fires on click)
+    CHECK(isModifierKey(ImGuiKey_LeftShift));
+    CHECK(!isModifierKey(ImGuiKey_A));
+
     return imtest::report();
 }
