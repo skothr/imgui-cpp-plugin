@@ -71,17 +71,34 @@ public:
     using RowVector = Vector<T, M>;
     using ColVector = Vector<T, N>;
 
-private:
-    // NOTE: m_data (flat) and m_columns (column-major view) are read/written
-    // interchangeably. For N>=2, ColVector is non-trivial, so reading the inactive
-    // member is strictly [class.union] UB — it works because GCC documents union
-    // type-punning as an extension (verified correct + UBSan-clean on the g++12
-    // target). Non-portable to Clang/MSVC/LTO. Canonicalizing on one member is
-    // tracked post-beta; do not rely on this layout off the documented toolchain.
-    union {
-        std::array<T, N*M> m_data;
-        std::array<ColVector, M> m_columns;
+    // Lightweight column views: m[c][r] reads/writes element (row r, col c) over the
+    // flat column-major buffer, with no separate column objects to alias. The held
+    // pointer stays within the single m_data array, so the indexing is well-defined
+    // (unlike a reinterpret_cast across vector subobjects).
+    class ColView {
+        T *m_col;
+    public:
+        explicit ColView(T *col) : m_col(col) {}
+        [[nodiscard]] T&       operator[](int r)       { return m_col[r]; }
+        [[nodiscard]] const T& operator[](int r) const { return m_col[r]; }
+        [[nodiscard]] operator ColVector() const { ColVector v; for(int r = 0; r < N; r++) { v[r] = m_col[r]; } return v; }
     };
+    class ConstColView {
+        const T *m_col;
+    public:
+        explicit ConstColView(const T *col) : m_col(col) {}
+        [[nodiscard]] const T& operator[](int r) const { return m_col[r]; }
+        [[nodiscard]] operator ColVector() const { ColVector v; for(int r = 0; r < N; r++) { v[r] = m_col[r]; } return v; }
+    };
+
+private:
+    // Column-major flat storage: element (row r, col c) is at index c*N + r. A
+    // single member (no union) keeps the storage portable — no inactive-union-member
+    // reads (the prior layout was [class.union] UB off g++). data() hands OpenGL the
+    // column-major buffer directly.
+    std::array<T, N*M> m_data{};
+
+    template<typename, int, int> friend class Matrix;   // sibling-T conversions read m_data
 
     template<typename TT = Matrix<T,N,M>>
     void cofactor(Matrix<T,N,M> &result, int row, int col, int dim) const requires is_square_matrix<TT> {
@@ -102,7 +119,7 @@ private:
     }
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] T determinant(int dim) const requires is_square_matrix<TT> {
-        if(dim == 1) { return m_columns[0][0]; }
+        if(dim == 1) { return (*this)(0, 0); }
         T det = T{0}; T sign = T{1}; Matrix<T,N,M> temp;
         for(int c = 0; c < dim; c++) {
             cofactor(temp, 0, c, dim);
@@ -128,15 +145,15 @@ private:
 
 public:
     Matrix() { if constexpr(N == M) { identity(); } else { zero(); } }
-    Matrix(const std::array<ColVector, M> &cols) : m_columns(cols) {}
-    Matrix(const std::array<T, N*M>       &flat) : m_data(flat) {}
-    Matrix(const Matrix &o) : m_data(o.m_data) {}
+    Matrix(const std::array<ColVector, M> &cols) {
+        for(int c = 0; c < M; c++) for(int r = 0; r < N; r++) { m_data[c*N + r] = cols[c][r]; }
+    }
+    Matrix(const std::array<T, N*M> &flat) : m_data(flat) {}   // flat is column-major (index c*N + r)
+    Matrix(const Matrix &o) = default;
 
     template<typename U>
     Matrix(const Matrix<U,N,M> &o) {
-        for(int i = 0; i < N; i++)
-            for(int j = 0; j < M; j++)
-                { m_data[i*M + j] = static_cast<T>(o.m_data[i*M + j]); }
+        for(int i = 0; i < N*M; i++) { m_data[i] = static_cast<T>(o.m_data[i]); }
     }
 
     template<typename TT = Matrix<T,N,M>>
@@ -145,13 +162,13 @@ public:
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] static TT makeTranslate(const Vector<T, N-1> &dPos) requires is_square_matrix<TT> {
         Matrix<T,N,M> r = makeIdentity();
-        for(int i = 0; i < N-1; i++) { r[N-1][i] = dPos[i]; }
+        for(int i = 0; i < N-1; i++) { r(i, N-1) = dPos[i]; }
         return r;
     }
     template<typename TT = Matrix<T,N,M>>
     [[nodiscard]] static TT makeScale(const Vector<T, N-1> &dScale) requires is_square_matrix<TT> {
         Matrix<T,N,M> r = makeIdentity();
-        for(int i = 0; i < N-1; i++) { r[i][i] = dScale[i]; }
+        for(int i = 0; i < N-1; i++) { r(i, i) = dScale[i]; }
         return r;
     }
     template<typename TT = Matrix<T,N,M>>
@@ -190,14 +207,14 @@ public:
 
     [[nodiscard]] T* data()             { return m_data.data(); }
     [[nodiscard]] const T* data() const { return m_data.data(); }
-    [[nodiscard]] ColVector col(int c) const { return m_columns[c]; }
-    [[nodiscard]] RowVector row(int r) const { RowVector r2; for(int c = 0; c < M; c++) { r2[c] = m_columns[c][r]; } return r2; }
+    [[nodiscard]] ColVector col(int c) const { ColVector v; for(int r = 0; r < N; r++) { v[r] = m_data[c*N + r]; } return v; }
+    [[nodiscard]] RowVector row(int r) const { RowVector v; for(int c = 0; c < M; c++) { v[c] = m_data[c*N + r]; } return v; }
 
     template<typename TT = Matrix<T,N,M>>
     TT& identity() requires is_square_matrix<TT> {
         for(int c = 0; c < M; c++)
             for(int r = 0; r < N; r++)
-                { m_data[r*M + c] = static_cast<T>(r == c ? 1 : 0); }
+                { m_data[c*N + r] = static_cast<T>(r == c ? 1 : 0); }
         return *this;
     }
     template<typename TT = Matrix<T,N,M>>
@@ -242,12 +259,12 @@ public:
     [[nodiscard]] bool operator==(const Matrix &o) const { for(int i = 0; i < N*M; i++) if(m_data[i] != o.m_data[i]) return false; return true; }
     [[nodiscard]] bool operator!=(const Matrix &o) const { return !(*this == o); }
 
-    [[nodiscard]] const ColVector& operator[](int c) const { return m_columns[c]; }
-    [[nodiscard]] ColVector& operator[](int c)             { return m_columns[c]; }
-    // Column-major addressing, consistent with operator[](c)[r], m_columns, and
-    // data() (the flat buffer OpenGL expects): element (row r, col c) == m_columns[c][r].
-    [[nodiscard]] const T& operator()(int r, int c) const  { return m_columns[c][r]; }
-    [[nodiscard]] T& operator()(int r, int c)              { return m_columns[c][r]; }
+    [[nodiscard]] ConstColView operator[](int c) const { return ConstColView(&m_data[c*N]); }
+    [[nodiscard]] ColView      operator[](int c)       { return ColView(&m_data[c*N]); }
+    // Column-major addressing, consistent with operator[](c)[r] and data() (the flat
+    // buffer OpenGL expects): element (row r, col c) == m_data[c*N + r].
+    [[nodiscard]] const T& operator()(int r, int c) const  { return m_data[c*N + r]; }
+    [[nodiscard]] T& operator()(int r, int c)              { return m_data[c*N + r]; }
 
     Matrix& operator+=(const Matrix &rhs)       { for(int i = 0; i < N*M; i++) m_data[i] += rhs.m_data[i]; return *this; }
     [[nodiscard]] Matrix operator+ (const Matrix &rhs) const { Matrix r(*this); return (r += rhs); }
@@ -256,14 +273,12 @@ public:
 
     template<typename TT = Matrix<T,N,M>>
     typename std::enable_if<(N == M), TT&>::type operator^=(const TT &rhs) {
-        std::array<Vector<T, M>, N> result;
-        // (M*rhs)(r,c) = dot(row r, column c). Storage is column-major, so the
-        // (row r, col c) entry is column c at index r -> result[c][r]. Writing
-        // result[r][c] (as before) stores the transpose of the product.
+        std::array<T, N*M> result;
+        // (M*rhs)(r,c) = dot(row r, column c); column-major storage puts (r,c) at c*N + r.
         for(int r = 0; r < N; r++)
             for(int c = 0; c < M; c++)
-                { result[c][r] = dot(row(r), rhs.col(c)); }
-        m_columns = result;
+                { result[c*N + r] = dot(row(r), rhs.col(c)); }
+        m_data = result;
         return *this;
     }
     template<typename TT=Matrix<T,N,M>>
