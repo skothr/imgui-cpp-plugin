@@ -19,6 +19,7 @@ add_library(imtool STATIC
   src/node/node_graph.cpp
   src/node/node_graph_display.cpp
   src/input/key_binding.cpp
+  src/settings/setting.cpp
 )
 add_library(imtool::imtool ALIAS imtool)
 
