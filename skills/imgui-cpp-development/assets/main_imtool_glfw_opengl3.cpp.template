@@ -26,6 +26,11 @@ using namespace imtool;
 // --- demo node types -------------------------------------------------------
 // A node declares typed ports in its constructor. Connectors are type-checked
 // at connection time (a float output only connects to a float input).
+// These are topology-only (no compute). For nodes that actually COMPUTE — a
+// shared `ValueNode` base owning `result`, subclasses overriding only compute(),
+// one upstream() helper (DRY, single-responsibility) — see the toolkit's
+// calc_graph example (toolkit/fixtures/calc_nodes.hpp; under _deps/imtool-src/
+// when the toolkit is fetched via FetchContent).
 struct NumberNode : Node { NumberNode() : Node("Number") { addOutput<float>("value"); } };
 struct AddNode    : Node { AddNode()    : Node("Add")    { addInput<float>("a"); addInput<float>("b"); addOutput<float>("sum"); } };
 struct OutputNode : Node { OutputNode() : Node("Output") { addInput<float>("in"); } };

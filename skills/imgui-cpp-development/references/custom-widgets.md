@@ -63,6 +63,8 @@ bool MyWidget(const char* label, ImVec2 size_arg /* ... */) {
 
 Why each step: `SkipItems` skips submission inside collapsed/clipped windows; `GetID` hashes the label so two of these in the same loop don't collide (or wrap the call site in `ImScoped::ID`); `ItemSize` advances the layout cursor for *every* widget including clipped ones, so the cursor stays consistent; `ItemAdd` is the gate that registers with hit-testing, keyboard nav, and clipping — when it returns false you must skip rendering and state queries; `ButtonBehavior` consumes mouse state and writes back to `g.LastItemData`; rendering goes last so it can read the freshly-computed interaction state. Custom widgets that follow this skeleton are indistinguishable from stock widgets to the rest of ImGui.
 
+Because the skeleton is a plain function taking a `label`, it **is** your reuse unit: write each custom widget once here and call it from anywhere — don't re-paste the `ItemSize` / `ItemAdd` / `ButtonBehavior` block inline at each call site. This is the one place a consumer is most tempted to copy-paste internal-API boilerplate, so factoring it pays off the most.
+
 When the widget needs `IsItemHovered`/`IsItemActive`-style queries, additional API surfaces (`IsItem*` family, keyboard-nav opt-in, DrawList layers, path API, clipping, channels), or specific drawing primitives, jump to the relevant section below.
 
 ## The item protocol — what every custom widget must do
