@@ -12,7 +12,24 @@ namespace imtool {
 // toString(AppStatus) is now an inline function in application.hpp (header-only,
 // so it is usable/testable without linking this GLFW/GL translation unit).
 
-Application::Application(AppConfig config) : m_config(std::move(config)) {}
+Application::Application(AppConfig config) : m_config(std::move(config)) {
+    // Live-tunable app settings (Epic B): observer Settings bound into AppConfig's
+    // runtime fields. AppConfig stays the immutable bootstrap bank; this is the
+    // editable view. A subclass adds its own settings in its constructor.
+    m_settings = std::make_unique<SettingGroup>("app", "Application");
+    SettingMeta<Vec4f> clearMeta;
+    clearMeta.hint = WidgetHint::Color;
+    m_settings->add<Vec4f>("clear_color", "Clear Color", &m_config.clearColor, clearMeta);
+    m_settings->add<bool>("vsync", "VSync", &m_config.vsync)
+        .onChange([this](const bool &v) { if(m_window) { glfwSwapInterval(v ? 1 : 0); } });
+}
+
+std::expected<void, ToolkitError> Application::saveSession(const std::filesystem::path &path) const {
+    return saveSettingsFile(*m_settings, path);
+}
+std::expected<void, ToolkitError> Application::loadSession(const std::filesystem::path &path) {
+    return loadSettingsFile(*m_settings, path);
+}
 Application::~Application() { destroy(); }
 
 void Application::glfwErrorCallback(int code, const char *desc) {

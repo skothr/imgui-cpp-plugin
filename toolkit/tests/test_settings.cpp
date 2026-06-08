@@ -1,5 +1,6 @@
 #include "imtest.hpp"
 
+#include <filesystem>
 #include <string>
 
 #include <imtool/settings/setting.hpp>
@@ -141,6 +142,29 @@ int main() {
         CHECK(g.empty());
         const json js = g.to_json();
         CHECK(js.is_object() && js.empty());
+    }
+
+    // --- file-IO round-trip: the std::expected boundary (saveSettingsFile/loadSettingsFile) ---
+    {
+        SettingGroup g("p", "P");
+        g.add<float>("x", "X", 1.5f);
+        g.add<bool>("on", "On", true);
+        const auto path = std::filesystem::temp_directory_path() / "imtool_settings_roundtrip_test.json";
+
+        const auto saved = saveSettingsFile(g, path);
+        CHECK(saved.has_value());                          // success -> std::expected has a value
+        g.get<float>("x")->value() = 9.9f;                 // mutate, then reload from disk
+        g.get<bool>("on")->value()  = false;
+        const auto loaded = loadSettingsFile(g, path);
+        CHECK(loaded.has_value());
+        CHECK_NEAR(g.get<float>("x")->value(), 1.5f, 1e-4);
+        CHECK(g.get<bool>("on")->value() == true);
+        std::filesystem::remove(path);
+
+        // a missing file surfaces a ToolkitError, never a throw
+        const auto missing = loadSettingsFile(g, std::filesystem::temp_directory_path() / "imtool_nope_does_not_exist.json");
+        CHECK(!missing.has_value());
+        CHECK(missing.error().kind == ErrorKind::IoFailure);
     }
 
     return imtest::report();

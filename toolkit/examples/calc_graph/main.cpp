@@ -55,6 +55,7 @@ public:
             {"view.reset", "Reset view", "Recenter the node canvas",  ImGuiMod_Ctrl | ImGuiKey_0, false, nullptr},
             {"app.quit",   "Quit",       "Close the application",     ImGuiMod_Ctrl | ImGuiKey_Q, false, nullptr},
         });
+        if(m_a) { m_view.select(m_a); }   // seed the Inspector with a selected node
     }
 
 protected:
@@ -69,19 +70,34 @@ protected:
 
         m_graph.evaluate();   // cheap; keeps m_out->result live as inputs change
 
-        ImGui::SetNextWindowSize(ImVec2(1000.0f, 640.0f), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(1080.0f, 640.0f), ImGuiCond_FirstUseEver);
         if(ImGui::Begin("imtool calc_graph example")) {
-            ImGui::TextDisabled("A node graph that computes (a + b). Drag the inputs; the result updates live.");
-            if(m_a) { ImGui::DragFloat("a", &m_a->value, 0.1f); }
-            if(m_b) { ImGui::DragFloat("b", &m_b->value, 0.1f); }
-            if(ImGui::Button("Reset view")) { m_view.resetView(); }
+            ImGui::TextDisabled("A node graph that computes (a + b). Click a Number node, then edit its");
+            ImGui::TextDisabled("value in the Inspector (auto-rendered from the node's SettingGroup).");
             ImGui::Text("result a + b = %.2f", m_out ? static_cast<double>(m_out->result) : 0.0);
             ImGui::Text("nodes %zu   edges %zu   FPS %.0f",
                         m_graph.nodeCount(), m_graph.edgeCount(),
                         static_cast<double>(ImGui::GetIO().Framerate));
+            if(ImGui::Button("Reset view")) { m_view.resetView(); }
             ImGui::TextDisabled("right-click: add node | drag port->port: connect | wheel: zoom | Del: remove");
             m_view.draw();   // fills the remaining content region
         }
+        ImGui::End();
+
+        // Inspector: the selected node's settings, auto-rendered by the framework (Epic B).
+        if(ImGui::Begin("Inspector")) {
+            if(Node *sel = m_view.selected()) {
+                ImGui::Text("%s  (#%d)", std::string(sel->name()).c_str(), sel->id());
+                ImGui::Separator();
+                sel->settings().draw();
+            } else {
+                ImGui::TextDisabled("Select a node to edit its settings.");
+            }
+        }
+        ImGui::End();
+
+        // The application's own settings (clear color, vsync) — observers bound into AppConfig.
+        if(ImGui::Begin("App Settings")) { settings().draw(); }
         ImGui::End();
 
         m_keys.drawEditor("Key Bindings");

@@ -15,10 +15,14 @@
 // settings auto-inspector, session persistence, app-managed dockspace host,
 // font management, multiple concurrent Application instances.
 
+#include <expected>
+#include <filesystem>
+#include <memory>
 #include <string>
 
 #include <imtool/common/vector.hpp>    // Vec2i, Vec4f
 #include <imtool/common/logging.hpp>   // imtool::log()
+#include <imtool/settings/setting.hpp> // SettingGroup, ToolkitError (imgui-free)
 
 struct GLFWwindow;
 struct ImGuiContext;
@@ -102,6 +106,16 @@ public:
     [[nodiscard]] Vec2i            framebufferSize() const noexcept;
     [[nodiscard]] float            deltaTime()     const noexcept { return m_deltaTime; }
 
+    // The app's live-tunable settings (Epic B). Built in the ctor with observers
+    // bound into AppConfig's tunable fields (clear color, vsync); a subclass adds
+    // its own. AppConfig itself stays the immutable construction-time bank.
+    [[nodiscard]] SettingGroup&       settings()       noexcept { return *m_settings; }
+    [[nodiscard]] const SettingGroup& settings() const noexcept { return *m_settings; }
+
+    // Persist / restore the settings group as JSON (the session save/load path).
+    [[nodiscard]] std::expected<void, ToolkitError> saveSession(const std::filesystem::path &path) const;
+    [[nodiscard]] std::expected<void, ToolkitError> loadSession(const std::filesystem::path &path);
+
 protected:
     [[nodiscard]] virtual bool onInit() { return true; }   // false => UserInitFailed
     virtual void onGui() {}                                 // submit ImGui UI here (between NewFrame/Render)
@@ -129,6 +143,7 @@ private:
     float         m_mainScale    = 1.0f;
     double        m_lastTime     = 0.0;
     float         m_deltaTime    = 0.0f;
+    std::unique_ptr<SettingGroup> m_settings;   // built in the ctor (Epic B)
 };
 
 }  // namespace imtool
