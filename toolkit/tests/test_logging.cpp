@@ -30,9 +30,7 @@ int main() {
   CHECK(lg.lineCount() == 3);
   lg.clear();
 
-  // level filtering (use fresh loggers — once a buffer's level exceeds the
-  // print level, the stream stays latched; that recovery quirk is tracked
-  // separately and is out of scope for this PR).
+  // level filtering: content below the print level is dropped.
   {
     Logger f(false);
     f.setPrintLevel(LogLevel::Warning);
@@ -46,6 +44,19 @@ int main() {
     f << LogLevel::Error << "kept";
     f.flush();
     CHECK(f.lineCount() == 1);
+  }
+
+  // MAIN-363 regression: a LogLevel manipulator must always be honored, so a
+  // later `<< LogLevel::X` un-latches the stream after a filtered higher level.
+  // (Previously the print-level guard ran before the LogLevel branch, so once
+  // latched the stream dropped everything — including the un-latching token.)
+  {
+    Logger f(false);
+    f.setPrintLevel(LogLevel::Warning);
+    f << LogLevel::Debug << "hidden"      // filtered (Debug > Warning): dropped
+      << LogLevel::Error << "shown";      // Error <= Warning: must un-latch + record
+    f.flush();
+    CHECK(f.lineCount() == 1);            // only "shown" — the pre-fix latch recorded 0
   }
 
   // pushLevel / popLevel must balance without deadlock
