@@ -26,6 +26,11 @@ foreach(name ${IMTOOL_TEST_NAMES})
   add_test(NAME ${name} COMMAND ${name})
 endforeach()
 
+# test_integration shares the compute-node fixture (toolkit/fixtures/calc_nodes.hpp)
+# with the calc_graph example, so it validates the exact node types the example
+# ships (DRY). The fixture lives under fixtures/ — owned by neither client.
+target_include_directories(test_integration PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures)
+
 # test_logging spins up worker threads to exercise the logger mutex under
 # contention; a deadlock regression would hang, so cap it with a CTest timeout.
 find_package(Threads REQUIRED)

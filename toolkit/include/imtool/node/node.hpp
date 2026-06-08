@@ -124,4 +124,13 @@ private:
     std::vector<std::unique_ptr<Connector>>   m_outputs;
 };
 
+// Recover a typed handle from a base Node* (e.g. the Node* that NodeGraph::create
+// / find return). Returns nullptr if `n` is not a T. The open type system hands
+// back Node*, so any consumer that wants subclass state downcasts — this is the
+// one verb for it, so callers don't each hand-roll a dynamic_cast.
+template<typename T>
+[[nodiscard]] T* node_cast(Node *n) { return dynamic_cast<T*>(n); }
+template<typename T>
+[[nodiscard]] const T* node_cast(const Node *n) { return dynamic_cast<const T*>(n); }
+
 }  // namespace imtool

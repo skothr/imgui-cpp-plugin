@@ -39,11 +39,13 @@ if(IMTOOL_SMOKE_WITH_APP)
 endif()
 
 add_library(imgui STATIC ${IMTOOL_IMGUI_SOURCES})
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
+# SYSTEM: shield consumer warning flags from ImGui's headers (matches toolkit/
+# CMakeLists.txt and the scaffold CMake template, which both mark imgui SYSTEM).
+target_include_directories(imgui SYSTEM PUBLIC ${imgui_SOURCE_DIR})
 add_library(imgui::imgui ALIAS imgui)
 
 if(IMTOOL_SMOKE_WITH_APP)
-  target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR}/backends)
+  target_include_directories(imgui SYSTEM PUBLIC ${imgui_SOURCE_DIR}/backends)
   # GLFW — installed package preferred (offline / CI with libglfw3-dev), else fetched.
   find_package(glfw3 CONFIG QUIET)
   if(NOT TARGET glfw)

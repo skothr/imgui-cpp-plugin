@@ -15,6 +15,7 @@ endif()
 # toolkit/tests/test_integration.cpp.
 add_executable(calc_graph calc_graph/main.cpp)
 target_link_libraries(calc_graph PRIVATE imtool::app imgui::imgui)
+target_include_directories(calc_graph PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../fixtures)  # shared calc_nodes.hpp
 target_compile_features(calc_graph PRIVATE cxx_std_23)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
   target_compile_options(calc_graph PRIVATE -Wall -Wextra -Wpedantic)
