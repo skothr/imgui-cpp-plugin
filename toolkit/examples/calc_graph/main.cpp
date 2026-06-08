@@ -25,6 +25,7 @@
 #include <imtool/node/node_graph.hpp>
 #include <imtool/node/node_graph_display.hpp>
 #include <imtool/node/node_registry.hpp>
+#include <imtool/command/command.hpp>
 
 #include <calc_nodes.hpp>   // shared compute nodes (Number/Add/Mul/Output) — also driven by test_integration.cpp
 
@@ -53,6 +54,8 @@ public:
 
         m_keys.registerAll({
             {"view.reset", "Reset view", "Recenter the node canvas",  ImGuiMod_Ctrl | ImGuiKey_0, false, nullptr},
+            {"edit.undo",  "Undo",       "Undo last change",          ImGuiMod_Ctrl | ImGuiKey_Z, false, nullptr},
+            {"edit.redo",  "Redo",       "Redo last change",          ImGuiMod_Ctrl | ImGuiKey_Y, false, nullptr},
             {"app.quit",   "Quit",       "Close the application",     ImGuiMod_Ctrl | ImGuiKey_Q, false, nullptr},
         });
         if(m_a) { m_view.select(m_a); }   // seed the Inspector with a selected node
@@ -66,6 +69,8 @@ protected:
 
     void onGui() override {
         if(m_keys.triggered("view.reset")) { m_view.resetView(); }
+        if(m_keys.triggered("edit.undo"))  { m_undo.undo(); }
+        if(m_keys.triggered("edit.redo"))  { m_undo.redo(); }
         if(m_keys.triggered("app.quit"))   { requestQuit(); }
 
         m_graph.evaluate();   // cheap; keeps m_out->result live as inputs change
@@ -78,6 +83,20 @@ protected:
             ImGui::Text("nodes %zu   edges %zu   FPS %.0f",
                         m_graph.nodeCount(), m_graph.edgeCount(),
                         static_cast<double>(ImGui::GetIO().Framerate));
+            // Undo/redo demo (Epic C): discrete, undoable edits to input A.
+            if(ImGui::Button("A += 1")) { pushNumberDelta(m_a, +1.0f); }
+            ImGui::SameLine();
+            if(ImGui::Button("A -= 1")) { pushNumberDelta(m_a, -1.0f); }
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!m_undo.canUndo());
+            if(ImGui::Button("Undo")) { m_undo.undo(); }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!m_undo.canRedo());
+            if(ImGui::Button("Redo")) { m_undo.redo(); }
+            ImGui::EndDisabled();
+            ImGui::SameLine();
+            ImGui::Text("(undo %zu / redo %zu)", m_undo.undoCount(), m_undo.redoCount());
             if(ImGui::Button("Reset view")) { m_view.resetView(); }
             ImGui::TextDisabled("right-click: add node | drag port->port: connect | wheel: zoom | Del: remove");
             m_view.draw();   // fills the remaining content region
@@ -111,10 +130,21 @@ private:
         return c;
     }
 
+    // Push an undoable delta to a Number node's value (Epic C demo).
+    void pushNumberDelta(NumberNode *n, float delta) {
+        if(!n) { return; }
+        const float old_v = n->value;
+        const float new_v = old_v + delta;
+        m_undo.push(delta >= 0.0f ? "A += 1" : "A -= 1",
+                    [n, new_v] { n->value = new_v; },
+                    [n, old_v] { n->value = old_v; });
+    }
+
     NodeRegistry      m_registry;
     NodeGraph         m_graph;
     NodeGraphDisplay  m_view;
     KeyBindingManager m_keys;
+    UndoStack         m_undo;
     NumberNode       *m_a   = nullptr;
     NumberNode       *m_b   = nullptr;
     OutputNode       *m_out = nullptr;

@@ -19,6 +19,7 @@ set(IMTOOL_TEST_NAMES
   test_integration
   test_app_status
   test_settings
+  test_command
 )
 
 foreach(name ${IMTOOL_TEST_NAMES})
