@@ -17,6 +17,7 @@
 
 #include <imtool/common/type_registry.hpp>
 #include <imtool/common/vector.hpp>
+#include <imtool/settings/setting.hpp>
 
 namespace imtool {
 
@@ -92,11 +93,19 @@ public:
     // DEFERRED: async/worker-thread execution, cancellation, data propagation.
     virtual bool evaluate() { return true; }
 
-    // JSON param hooks for subclass-specific state. The graph passes a dedicated
-    // per-node "params" sub-object (NOT the node's top-level object), so a param
-    // named "id"/"type"/"name"/"pos" cannot collide with the reserved node keys.
-    virtual void saveParams(nlohmann::json & /*params*/) const {}
-    virtual void loadParams(const nlohmann::json & /*params*/) {}
+    // Per-node runtime parameters (Epic B). A subclass declares typed Settings in
+    // its ctor (e.g. settings().add<float>("gain","Gain",&m_gain)); they auto-render
+    // in the inspector and round-trip through JSON for free.
+    [[nodiscard]] SettingGroup&       settings()       { return m_settings; }
+    [[nodiscard]] const SettingGroup& settings() const { return m_settings; }
+
+    // JSON param hooks. The graph passes a dedicated per-node "params" sub-object
+    // (NOT the node's top-level object), so a param named "id"/"type"/"name"/"pos"
+    // cannot collide with the reserved node keys. By default they delegate to the
+    // SettingGroup above; a subclass may still OVERRIDE for non-Setting-shaped state
+    // (an opaque blob, a whole sub-graph) — see TaggedNode in the integration test.
+    virtual void saveParams(nlohmann::json &params) const { params = m_settings.to_json(); }
+    virtual void loadParams(const nlohmann::json &params) { m_settings.from_json(params); }
 
 protected:
     template<typename T>
@@ -122,6 +131,7 @@ private:
     Vec2f                                     m_pos      {};
     std::vector<std::unique_ptr<Connector>>   m_inputs;
     std::vector<std::unique_ptr<Connector>>   m_outputs;
+    SettingGroup                              m_settings {"params", "Settings"};   // per-node runtime params (Epic B)
 };
 
 // Recover a typed handle from a base Node* (e.g. the Node* that NodeGraph::create

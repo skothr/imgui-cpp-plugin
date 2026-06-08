@@ -20,6 +20,7 @@
 
 #include <imtool/node/node.hpp>
 #include <imtool/node/node_registry.hpp>
+#include <imtool/settings/setting.hpp>   // NumberNode exposes its value as a Setting
 
 namespace imtool::calc {
 
@@ -45,10 +46,14 @@ struct ValueNode : Node {
 // hooks (into the per-node "params" sub-object) so it survives a save/load.
 struct NumberNode : ValueNode {
     float value = 0.0f;
-    NumberNode() : ValueNode("Number") { addOutput<float>("value"); }
+    NumberNode() : ValueNode("Number") {
+        addOutput<float>("value");
+        // Epic B: a Setting observes `value`, so the inspector edits the same field
+        // compute() reads, and it serializes via the base saveParams shim (the JSON
+        // is byte-identical to the old manual p["value"]=value).
+        settings().add<float>("value", "Value", &value);
+    }
     void compute() override { result = value; }
-    void saveParams(nlohmann::json &p) const override { p["value"] = value; }
-    void loadParams(const nlohmann::json &p) override { value = p.value("value", 0.0f); }
 };
 
 struct AddNode : ValueNode {

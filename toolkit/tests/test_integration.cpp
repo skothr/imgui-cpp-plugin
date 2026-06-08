@@ -162,5 +162,25 @@ int main() {
                     tr->tag.c_str(), static_cast<double>(tr->pos().x), static_cast<double>(tr->pos().y));
     }
 
+    // --- 5. Epic B: NumberNode.value is now a Setting that OBSERVES the field ----
+    //     editing through the node's SettingGroup updates the value compute() reads,
+    //     and the base saveParams shim serializes it under the same "params" key.
+    {
+        NodeRegistry reg; registerAll(reg);
+        NodeGraph g(&reg);
+        auto *n = node_cast<NumberNode>(g.create("Number"));
+        CHECK(n != nullptr);
+        Setting<float> *vs = n->settings().get<float>("value");
+        CHECK(vs != nullptr);                       // the migrated node exposes its value as a typed Setting
+        vs->value() = 12.5f;                        // edit through the SettingGroup...
+        CHECK_NEAR(n->value, 12.5f, 1e-6);          // ...writes through to the field compute() reads (observer)
+        CHECK(g.evaluate());
+        CHECK_NEAR(n->result, 12.5f, 1e-6);
+        // and it still round-trips under the "params" key (base shim, no manual override)
+        const json js = g.toJson();
+        CHECK(js["nodes"][0]["params"]["value"].get<float>() == 12.5f);
+        std::printf("  [settings] NumberNode.value via SettingGroup = %.1f\n", static_cast<double>(n->result));
+    }
+
     return imtest::report();
 }
