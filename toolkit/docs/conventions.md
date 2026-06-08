@@ -4,7 +4,7 @@ The toolkit's structural ground rules. Anything in this doc takes precedence ove
 
 ## Namespace and naming
 
-- Single top-level namespace: `imtool`. All public symbols live under it.
+- Single top-level namespace: `imtool` (lowercase) — **locked for 1.0**. All public symbols live under it. The ImGui-family `ImTool::` CamelCase alternative (the Epic A "TBD") was considered and rejected: lowercase `imtool::` matches the `std`-style convention and reads as visibly distinct from ImGui's own `ImXxx` symbols (`imtool::Application` vs `ImGui::Begin`). Renaming after 1.0 is a breaking change, so this is final.
 - Sub-namespaces only when grouping a closed family of types whose names would clash without them (`imtool::node`, `imtool::view`). Default to flat.
 - Types: `CamelCase` (`Vec2f`, `SettingGroup`, `NodeGraphDisplay`).
 - Functions and methods: `camelCase` for member methods (`length`, `addInput`, `toString`) matching prior-art conventions; `snake_case` is acceptable for free functions when it reads more naturally (`to_json`, `from_json` follow the nlohmann convention they integrate with). Mirror the source when lifting.
