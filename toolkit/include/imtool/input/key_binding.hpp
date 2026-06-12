@@ -11,6 +11,7 @@
 // name table (beta serializes the raw chord int); multi-chord sequences;
 // per-binding GLOBAL/EXTRA_MODS flags; mod multipliers.
 
+#include <deque>
 #include <functional>
 #include <optional>
 #include <string>
@@ -124,7 +125,13 @@ public:
     [[nodiscard]] bool respectsImGuiCapture() const { return m_respectCapture; }
 
     // ---- access ----
-    [[nodiscard]] const std::vector<KeyBinding>& bindings() const { return m_bindings; }
+    // Returns a deque (not vector) deliberately: find()/bindingFor() hand back raw
+    // KeyBinding* into this container, and std::deque guarantees element pointers and
+    // references stay valid across push_back (only iterators are invalidated). So a
+    // pointer cached from find() survives a later registerAction() — a std::vector
+    // here would reallocate and dangle it. Insertion order (for the editor) and O(1)
+    // index access (via m_index) are preserved.
+    [[nodiscard]] const std::deque<KeyBinding>& bindings() const { return m_bindings; }
     [[nodiscard]] std::size_t size() const { return m_bindings.size(); }
 
     // ---- serialization (context-free) ----
@@ -140,7 +147,7 @@ private:
     [[nodiscard]] bool              chordActive(const KeyChord &c, bool repeat) const;  // edge query helper
     [[nodiscard]] bool              captureBlocked() const;
 
-    std::vector<KeyBinding>                       m_bindings;        // stable order for the editor
+    std::deque<KeyBinding>                        m_bindings;        // stable order + stable element addresses (see bindings())
     std::unordered_map<std::string, std::size_t>  m_index;           // action -> idx
     std::optional<std::string>                    m_recording;       // action being rebound
     bool                                          m_respectCapture = true;

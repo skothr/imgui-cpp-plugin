@@ -138,6 +138,7 @@ private:
     bool          m_running      = false;
     GLFWwindow   *m_window       = nullptr;
     ImGuiContext *m_imguiContext = nullptr;
+    bool          m_glfwInit     = false;   // glfwInit() returned true (glfwTerminate gate — GLFW contract)
     bool          m_glfwBackend  = false;   // ImGui_ImplGlfw_InitForOpenGL succeeded (shutdown gate)
     bool          m_gl3Backend   = false;   // ImGui_ImplOpenGL3_Init succeeded (shutdown gate)
     float         m_mainScale    = 1.0f;

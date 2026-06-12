@@ -56,6 +56,7 @@ AppStatus Application::initWindow() {
         log() << LogLevel::Error << "Application: glfwInit failed"; log().flush();
         return AppStatus::GlfwInitFailed;
     }
+    m_glfwInit = true;   // gate glfwTerminate() in cleanWindow() — only valid if init succeeded
 
 #if defined(__APPLE__)
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -207,7 +208,10 @@ void Application::cleanWindow() noexcept {
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
-    glfwTerminate();
+    // GLFW contract: glfwTerminate() is only valid when glfwInit() succeeded. On the
+    // GlfwInitFailed path create() still calls cleanWindow(), so gate on m_glfwInit —
+    // terminating an un-initialized GLFW is undefined behavior.
+    if(m_glfwInit) { glfwTerminate(); m_glfwInit = false; }
 }
 
 void Application::destroy() noexcept {

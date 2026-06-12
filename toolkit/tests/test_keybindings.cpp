@@ -29,6 +29,21 @@ int main() {
     CHECK(km.find("nope") == nullptr);
     CHECK(km.find("edit.undo")->chord.key() == ImGuiKey_Z);
 
+    // PR #2 review (skothr-cc, key_binding.hpp): a pointer returned by find() must
+    // stay valid across a LATER registerAction() — the late-registration-dangles-an-
+    // earlier-pointer case (a plugin registering its own actions after a UI cached a
+    // chord pointer). m_bindings is a std::deque precisely so element addresses are
+    // stable across push_back; register many more actions, then re-check the pointer.
+    {
+        const KeyBinding *undo_ptr = km.find("edit.undo");
+        for(int i = 0; i < 64; i++) {
+            km.registerAction({"late.action", "Late", "", ImGuiKey_None, false, nullptr});  // distinct ids below
+            km.registerAction({("late.action." + std::to_string(i)), "Late", "", ImGuiKey_None, false, nullptr});
+        }
+        CHECK(km.find("edit.undo") == undo_ptr);           // same address — not relocated
+        CHECK(undo_ptr->chord.key() == ImGuiKey_Z);        // and still reads correctly (no dangle)
+    }
+
     // rebind
     CHECK(km.rebind("edit.undo", KeyChord(ImGuiMod_Ctrl | ImGuiKey_W)));
     CHECK(km.find("edit.undo")->chord.key() == ImGuiKey_W);
