@@ -4,6 +4,17 @@
 
 This reference covers the minimum set of source files Dear ImGui v1.92.x needs, the headers consumers include, the canonical init/shutdown order, the recommended starter scaffolding (CMake + main), and the small handful of bootstrap mistakes upstream actively warns about. The per-frame work after `Init()` returns lives in [frame-loop.md](frame-loop.md). Detecting an existing ImGui copy (vs adding a new one) lives in [locate-imgui.md](locate-imgui.md).
 
+## Two scaffolds, and the backend argument
+
+`/imgui-cpp:imgui-bootstrap [backend] [dir]` produces one of two starting points:
+
+- **Toolkit-wired (default).** Templates `assets/CMakeLists-imtool-glfw-opengl3.txt.template` + `assets/main_imtool_glfw_opengl3.cpp.template`. `main.cpp` subclasses `imtool::Application` (which owns the window + GL context + ImGui context + frame loop described below) and shows a live `NodeGraph` view + a `KeyBindingManager` — a running toolkit app. The CMake fetches Dear ImGui, GLFW, nlohmann/json, and the **imtool toolkit** (`toolkit/` of this plugin repo, built with `IMTOOL_BUILD_APP=ON` so the `imtool_app`/`Application` layer compiles against the backends). Pin the toolkit via `IMTOOL_GIT_TAG` (default `main`; use a released tag like `v0.1.0` for reproducibility) or build against a local checkout with `-DFETCHCONTENT_SOURCE_DIR_IMTOOL=...`.
+- **Minimal (`--minimal`).** Templates `assets/CMakeLists-glfw-opengl3.txt.template` + `assets/main_glfw_opengl3.cpp.template` + `assets/imscoped.hpp`. A bare GLFW+OpenGL3 ImGui demo window with **no toolkit dependency** — the raw frame loop documented in the rest of this file. Use it to learn the mechanics or when the toolkit isn't wanted.
+
+**Backend** (`opengl3(default) | vulkan | dx11 | dx12 | metal | sdl2-renderer | sdl3-renderer | wgpu`): only `opengl3` is wired end-to-end. The toolkit's `Application` is GLFW+OpenGL3-only for the 0.1.x beta; the other backends need its platform/renderer layer generalized (tracked: backend feature requests MAIN-2…MAIN-7 + the bootstrap-backend issue). For any non-`opengl3` request the bootstrap prints `backend <X> is roadmap — falling back to opengl3` and scaffolds opengl3 — never a silent substitution.
+
+The init/shutdown/frame mechanics below apply to BOTH scaffolds; in the toolkit-wired one they live inside `imtool::Application` (see `toolkit/src/app/application.cpp`) rather than your `main.cpp`.
+
 ## What you compile
 
 Five core source files plus two backend source files for a GLFW + OpenGL3 app:

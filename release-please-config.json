@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "package-name": "imgui-cpp-plugin",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "generic", "path": "toolkit/CMakeLists.txt" },
+        { "type": "generic", "path": "toolkit/src/version.cpp" }
+      ]
+    }
+  }
+}
