@@ -20,3 +20,13 @@ target_compile_features(calc_graph PRIVATE cxx_std_23)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
   target_compile_options(calc_graph PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# plot_demo — three stacked imtool::plot widgets (line / scatter / swimlane) sharing
+# one time axis. See plot_demo/main.cpp; the plot transform + LOD collapse are
+# unit-tested headlessly by toolkit/tests/test_plot.cpp.
+add_executable(plot_demo plot_demo/main.cpp)
+target_link_libraries(plot_demo PRIVATE imtool::app imgui::imgui)
+target_compile_features(plot_demo PRIVATE cxx_std_23)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+  target_compile_options(plot_demo PRIVATE -Wall -Wextra -Wpedantic)
+endif()
