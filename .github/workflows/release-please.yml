@@ -1,0 +1,28 @@
+name: release-please
+
+# Maintains a Release PR from conventional commits on main. The release is cut
+# only when a human merges that Release PR (matches the never-auto-merge policy);
+# merging tags the version and publishes a GitHub release + CHANGELOG.
+#
+# Pre-1.0 cadence is configured in release-please-config.json:
+#   bump-minor-pre-major: true        -> a breaking change bumps the minor (0.1 -> 0.2),
+#                                        never auto-jumping to 1.0.0 during the beta
+#   bump-patch-for-minor-pre-major: false -> feat -> minor, fix -> patch (normal 0.x)
+# The baseline version lives in .release-please-manifest.json (0.1.0).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # config-file / manifest-file default to release-please-config.json
+          # and .release-please-manifest.json at the repo root.
+          token: ${{ secrets.GITHUB_TOKEN }}

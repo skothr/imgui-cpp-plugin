@@ -119,7 +119,8 @@ inline std::unordered_map<std::type_index, int>& type_nargs() {
 template<typename T>
 [[nodiscard]] inline std::type_index getTypeIndex() { return std::type_index(typeid(T)); }
 
-template<typename T>
+// Runtime lookup by type_index (non-template — the previous template<T> form
+// took T it never used and so was uncallable without an explicit, ignored T).
 [[nodiscard]] inline std::string getTypeName(std::type_index index) {
     auto iter = type_names().find(index);
     return (iter != type_names().end() ? iter->second : index.name());

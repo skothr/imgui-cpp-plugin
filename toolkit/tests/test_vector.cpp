@@ -73,5 +73,20 @@ int main() {
     CHECK_NEAR(g.normalized().length(), 1.0, 1e-5);
   }
 
+  // === complex (Vec2) / quaternion (Vec4) products. cMult was a fixed heritage
+  // bug (a.x*a.x -> a.x*b.x); the rotate() block above only covers qMult/qConj
+  // transitively, so pin the complex path (cMult/cConj) directly here. ===
+  {
+    // complex (a+bi)(c+di) = (ac-bd) + (ad+bc)i
+    const Vec2f cm = cMult(Vec2f(1, 2), Vec2f(3, 4)); // (1*3-2*4, 1*4+2*3)
+    CHECK_NEAR(cm.x, -5.0f, 1e-6);
+    CHECK_NEAR(cm.y, 10.0f, 1e-6);
+    CHECK(cMult(Vec2f(7, -3), Vec2f(1, 0)) == Vec2f(7, -3)); // multiplicative identity
+    CHECK(cConj(Vec2f(1, 2)) == Vec2f(1, -2));
+    // quaternion identity + conjugate sign flip (direct, not via rotate())
+    CHECK(qMult(Vec4f(2, 3, 4, 5), Vec4f(1, 0, 0, 0)) == Vec4f(2, 3, 4, 5));
+    CHECK(qConj(Vec4f(1, 2, 3, 4)) == Vec4f(1, -2, -3, -4));
+  }
+
   return imtest::report();
 }

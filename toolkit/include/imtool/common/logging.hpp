@@ -84,36 +84,51 @@ template<typename T>
 Logger& Logger::operator<<(const T &arg) {
     std::lock_guard<std::mutex> lk(m_logLock);
 
-    if(m_currentLevel > m_printLevel) { return *this; }
-
     if constexpr(std::is_same_v<std::decay_t<T>, LogLevel>) {
+        // A level manipulator is ALWAYS honored — even when the current level is
+        // filtered out — so a later `<< LogLevel::X` can lower the level and
+        // un-latch the stream (the content filter must not gate this). Kept as the
+        // first arm of one if-constexpr chain so the content `else` below is never
+        // instantiated for a LogLevel arg (it isn't string-streamable).
         if(arg != m_currentLevel) {
             if(!m_lineStream.str().empty()) { newline_locked(); }
             m_currentLevel = arg;
         }
-    } else if constexpr(std::is_convertible_v<T, std::string>) {
-        std::string arg_str = std::string(arg);
-        if(arg_str.find('\n') == std::string::npos) {
-            m_lineStream << arg_str;
-        } else {
-            std::istringstream ss(arg_str);
-            std::string token;
-            while(std::getline(ss, token, '\n')) {
-                m_lineStream << token;
-                newline_locked();
-            }
-        }
     } else {
-        m_lineStream << arg;
+        // Content token: dropped while the current level exceeds the print level.
+        if(m_currentLevel > m_printLevel) { return *this; }
+        if constexpr(std::is_convertible_v<T, std::string>) {
+            std::string arg_str = std::string(arg);
+            if(arg_str.find('\n') == std::string::npos) {
+                m_lineStream << arg_str;
+            } else {
+                std::istringstream ss(arg_str);
+                std::string token;
+                while(std::getline(ss, token, '\n')) {
+                    m_lineStream << token;
+                    newline_locked();
+                }
+            }
+        } else {
+            m_lineStream << arg;
+        }
     }
     return *this;
 }
 
+// Fixed stack buffer for the printf-style log() overloads. Deliberately a constant
+// stack array, not a heap allocation or a configurable size: it keeps the formatting
+// path allocation-free (logging is on hot paths), and snprintf truncates safely at
+// the bound rather than overflowing. A single format call longer than this is clipped
+// — raise the constant if a use case needs longer single-line formatted entries.
+// (Distinct from Logger's max_lines, which bounds how many lines are *retained*.)
+inline constexpr std::size_t kLogFormatBufferSize = 4096;
+
 template<typename... Args>
 Logger& Logger::log(const std::string &fmt, Args&& ...args) {
     if constexpr(sizeof...(args) > 0) {
-        char line[4096];
-        std::snprintf(line, 4096, fmt.c_str(), std::forward<Args>(args)...);
+        char line[kLogFormatBufferSize];
+        std::snprintf(line, kLogFormatBufferSize, fmt.c_str(), std::forward<Args>(args)...);
         (*this) << std::string(line);
     } else {
         (*this) << fmt;
@@ -124,8 +139,8 @@ Logger& Logger::log(const std::string &fmt, Args&& ...args) {
 template<typename... Args>
 Logger& Logger::log(LogLevel level, const std::string &fmt, Args&& ...args) {
     if constexpr(sizeof...(args) > 0) {
-        char line[4096];
-        std::snprintf(line, 4096, fmt.c_str(), std::forward<Args>(args)...);
+        char line[kLogFormatBufferSize];
+        std::snprintf(line, kLogFormatBufferSize, fmt.c_str(), std::forward<Args>(args)...);
         (*this) << level << std::string(line);
     } else {
         (*this) << level << fmt;
