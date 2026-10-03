@@ -74,7 +74,7 @@ Committed files, commit messages, and PR and issue text contain no emoji and no 
 
 - Work on a feature branch off an up-to-date `main`. Nothing is committed directly to `main`.
 - Commit in small, well-described steps. Push the branch and open a PR; a human merges it.
-- Never auto-merge, never force-push or amend `main`, and never delete an unmerged branch or its worktree unless the owner has abandoned it.
+- Never auto-merge. Never force-push any branch and never amend `main`'s history. Never delete an unmerged branch or its worktree unless the owner has explicitly said it is abandoned.
 - When a merge is requested, preserve the commit history rather than squashing unless asked.
 
 `main` must always be a shippable state: a marketplace added from GitHub installs the default branch, so a merge is a release to users. A marketplace added by local path installs whatever is checked out in that directory, so while a feature branch is checked out in the main checkout, a local-path install serves that branch.
