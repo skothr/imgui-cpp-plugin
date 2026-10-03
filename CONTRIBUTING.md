@@ -61,7 +61,7 @@ python -m scripts.run_loop \
   --max-iterations 5
 ```
 
-(Run this from the `skill-creator` skill's own directory; `scripts/run_loop.py` ships with that skill, not with this repo.)
+(`scripts/run_loop.py` ships with the `skill-creator` skill, not with this repo. Run the command from that skill's directory and replace the two paths above with absolute paths into this repo.)
 
 ### Adding a backend doc
 
@@ -77,7 +77,7 @@ Backends other than OpenGL3+GLFW are tracked as GitHub issues in this repo (#27 
 
 ### Adding a build-system flow
 
-Build systems other than CMake are also tracked as GitHub issues (#24 through #26). The flow is similar:
+Build systems other than CMake are also tracked as GitHub issues (#24 through #26; Premake has no issue yet). The flow is similar:
 
 1. Update `bootstrap.md` and `locate-imgui.md` with build-system-specific scaffolding.
 2. Update `scripts/locate-imgui.sh` to recognize that build system's typical layout.
@@ -86,9 +86,9 @@ Build systems other than CMake are also tracked as GitHub issues (#24 through #2
 
 ## Issue routing
 
-- **New backends, build systems, asset templates** → GitHub issue with the `feature` label.
+- **New backends, build systems, asset templates** → GitHub issue; a maintainer labels it `feature`.
 - **Newly discovered ImGui pitfalls** → research note in `vendor/notes/issues/<topic>.md` (gitignored), then promote to `references/pitfalls-catalog.md` plus the relevant deep-dive doc when you've confirmed the reproducer.
-- **Friction with this plugin's own tooling** (eval flow, vendor setup, test harness) → GitHub issue with the `friction` label.
+- **Friction with this plugin's own tooling** (eval flow, vendor setup, test harness) → GitHub issue; a maintainer labels it `friction`.
 - **Plugin name / branding** → leave for the maintainer; bikeshed at release.
 
 ## Code of conduct

@@ -53,7 +53,7 @@ What it does:
 
 - Echoes the prompt up front so the transcript is self-contained.
 - Sets `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` so the run doesn't pollute `~/.claude/history.jsonl` or the per-project transcript dir.
-- Streams `claude -p`'s output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored, so you only commit transcripts intentionally (e.g. as evidence of a memorable failure).
+- Streams `claude -p`'s output to your terminal AND `transcripts/<NN>-<slug>__<UTC>.{txt,jsonl}`. Both transcript extensions are gitignored and stay local: a transcript can contain local paths, which this public repo must not carry.
 - In `--json` mode, pretty-prints events to the terminal (assistant prose streams inline, thinking blocks shown wrapped under `[thinking]`, tool uses as `[tool: name]`, tool results as `[tool_result]`, system hook noise suppressed) while writing the *raw* JSONL stream to disk for later grading.
 
 Output paths in the prompts are **relative to your cwd (`tests/`)**. A prompt that says `04-debug-delete-button/response.md` resolves to `tests/04-debug-delete-button/response.md` on disk.
@@ -97,7 +97,7 @@ Why this is the right call for tests:
 
 - **Always tests the freshest source.** No global install to keep in sync with the working tree, no cache-staleness ("which commit did I install?" vs "what's on disk now?"), no need to reinstall after every edit.
 - **No global state to clean up.** When the test exits, nothing is left in `~/.claude/plugins/` for the test. Whatever globally-installed copy you have for normal use is untouched.
-- **Sidesteps the worktree footgun.** The local-scope-vs-worktree issue doesn't apply because we're not relying on installed-plugin scope at all. The user-scope-during-dev workaround similarly doesn't apply for these test runs — though you may still want a globally-installed copy for everyday work outside the test harness.
+- **Sidesteps the worktree footgun.** A plugin installed at local scope is tied to the checkout it was installed from, so a session in a different worktree does not see it. That doesn't apply here because we're not relying on installed-plugin scope at all. The workaround of installing at user scope during development similarly doesn't apply for these test runs — though you may still want a globally-installed copy for everyday work outside the test harness.
 
 If you DO have a globally-installed copy of `imgui-cpp` AND run a test, the per-session `--plugin-dir` version takes precedence for that one run. Global state is unchanged.
 
@@ -112,7 +112,7 @@ After each test run:
 
 - If the skill behaved correctly: note what worked. Repeat-runs build confidence.
 - If the skill misbehaved: capture the failure mode in a GitHub issue (label `friction` for skill UX issues, `bug` for actually-wrong content). The skill-creator iteration loop in `evals/` is the right place to formalize a regression test for it.
-- Test output dirs are gitignored. Quote an interesting failure in the issue rather than committing the output.
+- Test output dirs and transcripts are gitignored. Quote an interesting failure in the issue, with local paths removed, rather than committing the output.
 
 ## Adding more prompts
 

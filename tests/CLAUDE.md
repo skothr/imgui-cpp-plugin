@@ -41,4 +41,4 @@ If you notice the skill misbehaving (mis-trigger, wrong routing, stale advice, f
 
 ## Test outputs are gitignored
 
-Test sessions create real subdirectories with real files under `tests/`. The per-prompt output dirs (`tests/<NN>-<slug>/`) and `tests/archived/` are in `.gitignore`, so a run leaves nothing to commit. When a run produces evidence worth keeping (for example, a botched diagnosis), quote the relevant part in a GitHub issue rather than committing the output.
+Test sessions create real subdirectories with real files under `tests/`. The per-prompt output dirs (`tests/<NN>-<slug>/`) and `tests/archived/` are in `.gitignore`, so a run leaves nothing to commit. When a run produces evidence worth keeping (for example, a botched diagnosis), quote the relevant part in a GitHub issue, with local paths removed, rather than committing the output.

@@ -8,7 +8,7 @@ A Claude Code **plugin** that ships an `imgui-cpp-development` skill and slash c
 
 This file is for developers of the plugin. The shipped skill has its own audience-facing documentation in `skills/imgui-cpp-development/SKILL.md`. What is true for plugin developers (vendor-grounded research, eval-driven changes) is not what the shipped skill should tell its users.
 
-**This repo is public.** Nothing committed or posted here (files, commit messages, PR and issue text) may contain absolute local paths, machine-specific or personal configuration, credentials, or identifiers from private trackers. Use repo-relative paths and placeholders such as `<repo-root>`.
+**This repo is public.** Nothing committed or posted here (files, commit messages, PR and issue text) may contain absolute local paths, machine-specific or personal configuration, credentials, or identifiers from private trackers. Use repo-relative paths and placeholders such as `<repo-root>`. Known leftover: two comment lines in `tests/run-prompt.py` still cite ids from the tracker used before GitHub Issues.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ Committed files, commit messages, and PR and issue text contain no emoji and no 
 - Never auto-merge, never force-push or amend `main`, and never delete an unmerged branch or its worktree unless the owner has abandoned it.
 - When a merge is requested, preserve the commit history rather than squashing unless asked.
 
-`main` must always be a shippable state: `/plugin marketplace add` and `/plugin install` consume the default branch, so a merge is a release to users.
+`main` must always be a shippable state: a marketplace added from GitHub installs the default branch, so a merge is a release to users. A marketplace added by local path installs whatever is checked out in that directory, so while a feature branch is checked out in the main checkout, a local-path install serves that branch.
 
 ### Plugin install caveat: marketplace name avoids the `claude-` prefix
 
@@ -90,7 +90,7 @@ That error cost about two hours of bisecting manifest fields before a search of 
 These are defined in `skills/imgui-cpp-development/SKILL.md` ("Default conventions") and mirrored here so dev-time edits stay aligned:
 
 1. **RAII scope guards for every paired call**: see `assets/imscoped.hpp`.
-2. **Begin/End pairing rules**: `Begin` and `BeginChild` pair with their `End` regardless of the return value; every other `Begin*` pairs with `End*` only when it returned true. The scope guards encode this.
+2. **Begin/End pairing rules**: `Begin` and `BeginChild` pair with their `End` regardless of the return value; every other `Begin*` that returns `bool` pairs with `End*` only when it returned true. The scope guards encode this.
 3. **`std::expected<T, GfxError>` at API boundaries** for fallible resource ops.
 4. **Diagnostics default to `std::fprintf` / `std::printf`**; `std::print` / `std::println` only where the toolchain is confirmed to support `<print>`.
 5. **Strict ID-stack hygiene**: `PushID(ptr)` for objects, `PushID(int)` for stable indices, no bare auto-labels in loops.
