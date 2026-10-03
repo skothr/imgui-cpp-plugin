@@ -10,7 +10,7 @@ Bootstrap a fresh Dear ImGui project wired to the **imtool toolkit** at the give
 Parse a graphics backend from `$ARGUMENTS` (first token if it matches the list below); if absent, ask the user. Default: **opengl3**.
 
 - `opengl3` — **fully supported, end-to-end.** GLFW + OpenGL3, the toolkit's `imtool::Application`.
-- `vulkan` | `dx11` | `dx12` | `metal` | `sdl2-renderer` | `sdl3-renderer` | `wgpu` — **roadmap.** No backend-specific scaffold yet. Tell the user verbatim: `backend <X> is roadmap — falling back to opengl3` and scaffold opengl3. These map to the backend feature requests (Linear MAIN-2…MAIN-7) and the bootstrap-backend tracking issue; mention that the toolkit `Application` is currently GLFW+OpenGL3-only and other backends need its platform/renderer layer generalized.
+- `vulkan` | `dx11` | `dx12` | `metal` | `sdl2-renderer` | `sdl3-renderer` | `wgpu` — **roadmap.** No backend-specific scaffold yet. Tell the user verbatim: `backend <X> is roadmap — falling back to opengl3` and scaffold opengl3. These map to the backend feature requests (GitHub issues #27-#32) and the bootstrap-backend tracking issue (#13); mention that the toolkit `Application` is currently GLFW+OpenGL3-only and other backends need its platform/renderer layer generalized.
 
 Do **not** silently substitute — always print the fallback line so the user knows they got opengl3.
 
@@ -38,6 +38,6 @@ Do **not** silently substitute — always print the fallback line so the user kn
 
 ## Boundary
 
-This plugin owns the build + code templates. A wrapper (e.g. claude-config's `init_project.py --style cpp-imgui`) only writes the Claude overlay and then points the user here; it does not generate build/source files.
+This plugin owns the build + code templates. A wrapper (for example a project-initializer script that sets up a new repo) only writes the Claude overlay and then points the user here; it does not generate build/source files.
 
 If anything fails (target dir missing, FetchContent blocked by no network on first build, a roadmap backend requested), report the failure with the recovery path. Don't auto-retry blindly.

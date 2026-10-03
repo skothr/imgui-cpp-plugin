@@ -3,7 +3,7 @@
 // NodeGraph data-model primitives — Node + Connector (port). Data only; no ImGui.
 // Lifted + modernized from 19-logos (node/node.hpp, nodeConnector.hpp) and
 // 16-nodegraph: open type system via std::type_index, std::unique_ptr ownership,
-// JSON param hooks. Deferred (post-beta, see Linear): worker-thread execution,
+// JSON param hooks. Deferred (post-beta, issues #21-#23): worker-thread execution,
 // std::stop_token cancellation, push/pull data payloads, dirty-flag bookkeeping,
 // DataTensor, mid-sequence port insertion, settings auto-inspector.
 

@@ -4,7 +4,7 @@
 
 #include <imtool/plot/plot.hpp>
 
-// Headless coverage of imtool::plot (MAIN-594). draw() needs a live ImGui frame
+// Headless coverage of imtool::plot (issue #5). draw() needs a live ImGui frame
 // and is exercised by the demo + (later) an imgui_test_engine test; everything
 // load-bearing is verified frame-free here:
 //   - the pure data<->screen transform (the test seam, like test_nodeview), across

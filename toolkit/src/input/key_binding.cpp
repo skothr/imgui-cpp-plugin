@@ -123,7 +123,7 @@ int KeyBindingManager::poll() {
 
 // --- recording ---------------------------------------------------------------
 // The recordable-key predicate (isRecordableKey / isModifierKey) now lives in the
-// header so it can be unit-tested without a live ImGui frame (MAIN-380).
+// header so it can be unit-tested without a live ImGui frame.
 
 void KeyBindingManager::beginRecording(std::string_view action) {
     if(findBinding(action)) { m_recording = std::string(action); }

@@ -75,7 +75,7 @@ int main() {
     CHECK(km2.find("edit.undo")->chord.key() == ImGuiKey_Z);   // unchanged by load
     CHECK(!km2.loadJson(nlohmann::json::array()));             // non-object root rejected
 
-    // MAIN-380: the recording-range predicate is now a pure header function, so the
+    // The recording-range predicate is now a pure header function, so the
     // policy (which keys may be captured as a binding) is testable without a frame.
     CHECK(isRecordableKey(ImGuiKey_A));            // real named key
     CHECK(isRecordableKey(ImGuiKey_Escape));       // named key (updateRecording treats it as cancel separately)

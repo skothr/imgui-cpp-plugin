@@ -4,7 +4,7 @@
 
 #include <imtool/app/application.hpp>
 
-// MAIN-380: pin the AppStatus -> exit-code mapping. Application::run() returns
+// Pin the AppStatus -> exit-code mapping. Application::run() returns
 // static_cast<int>(status), so Ok must be 0 and each error a distinct nonzero
 // code; a future edit that collides two enumerators or reorders them would change
 // process exit codes silently. toString() is the inline header function (no GLFW

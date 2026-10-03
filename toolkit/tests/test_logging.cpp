@@ -46,7 +46,7 @@ int main() {
     CHECK(f.lineCount() == 1);
   }
 
-  // MAIN-363 regression: a LogLevel manipulator must always be honored, so a
+  // Regression: a LogLevel manipulator must always be honored, so a
   // later `<< LogLevel::X` un-latches the stream after a filtered higher level.
   // (Previously the print-level guard ran before the LogLevel branch, so once
   // latched the stream dropped everything — including the un-latching token.)

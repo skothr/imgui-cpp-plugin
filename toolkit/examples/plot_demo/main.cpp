@@ -1,4 +1,4 @@
-// plot_demo — a runnable imtool::plot example (MAIN-594).
+// plot_demo — a runnable imtool::plot example (issue #5).
 //
 // Three vertically stacked plots sharing ONE time axis (a TimeAxisLink), so a
 // zoom/pan/brush on any of them moves all three together:

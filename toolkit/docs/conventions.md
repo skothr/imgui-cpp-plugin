@@ -81,7 +81,7 @@ These features were deliberately excluded from Epic A's lift and have explicit r
 
 ## Lifted-from index — Epic A common/
 
-Each toolkit header maps to a prior-art source. Modernization is at the surface level (concepts, `constexpr`, `[[nodiscard]]`, scoped enums, function-static caches replacing extern globals); content is preserved unless explicitly flagged in the relevant Linear ticket.
+Each toolkit header maps to a prior-art source. Modernization is at the surface level (concepts, `constexpr`, `[[nodiscard]]`, scoped enums, function-static caches replacing extern globals); content is preserved unless explicitly flagged in the relevant GitHub issue.
 
 | Toolkit header | Source |
 |---|---|
@@ -106,4 +106,4 @@ Some features carried forward from `03-astrolograph/inc/base/mainWindow.hpp` are
 
 Default is "feature off, lower setup cost"; consumers opt in by flipping the flag in their `AppConfig` instance. Multi-project and update-thread are decoupled — either can be enabled independently.
 
-Source-of-truth for these design decisions lives on `MAIN-123` in Linear.
+Source-of-truth for these design decisions is GitHub issue #19 (Epic G).
