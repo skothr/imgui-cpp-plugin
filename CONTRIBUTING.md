@@ -16,7 +16,7 @@ The setup script clones Dear ImGui at the pinned `v1.92.7-docking` tag, GLFW 3.4
 
 ### Use `skill-creator` for every skill change
 
-Editing `skills/imgui-cpp-development/SKILL.md` or any file under `references/` / `assets/` / `scripts/` / `hooks/` should go through the `skill-creator` skill. Reasons:
+Editing `skills/imgui-cpp-development/SKILL.md` or any file under `references/` / `assets/` / `scripts/` should go through the `skill-creator` skill. Reasons:
 
 - The trigger description in `SKILL.md` is what determines whether the skill activates. `skill-creator` runs eval queries (positive + negative) to measure trigger precision/recall and proposes tuned descriptions.
 - Reference-doc edits affect routing accuracy. The eval suite catches regressions a human reviewer would miss.
@@ -61,13 +61,13 @@ python -m scripts.run_loop \
   --max-iterations 5
 ```
 
-(Run this inside the skill-creator's working environment; the script lives in the `superpowers` plugin.)
+(`scripts/run_loop.py` ships with the `skill-creator` skill, not with this repo. Run the command from that skill's directory and replace the two paths above with absolute paths into this repo.)
 
 ### Adding a backend doc
 
-Backends other than OpenGL3+GLFW are tracked as Linear feature requests (MAIN-2 through MAIN-7). To add one:
+Backends other than OpenGL3+GLFW are tracked as GitHub issues in this repo (#27 through #32). To add one:
 
-1. Pick the corresponding Linear issue and assign it.
+1. Pick the corresponding issue and assign it.
 2. Read `vendor/imgui/backends/imgui_impl_<backend>.{h,cpp}` cover-to-cover.
 3. Read `vendor/imgui/examples/example_<backend>/main.cpp` cover-to-cover.
 4. Write the new doc at `skills/imgui-cpp-development/references/backends/<backend>.md` following the template established by `opengl3-glfw.md`. The doc must be self-contained — load only it for projects targeting that backend.
@@ -77,7 +77,7 @@ Backends other than OpenGL3+GLFW are tracked as Linear feature requests (MAIN-2 
 
 ### Adding a build-system flow
 
-Build systems other than CMake are also tracked as Linear feature requests (MAIN-8 through MAIN-11). The flow is similar:
+Build systems other than CMake are also tracked as GitHub issues (#24 through #26; Premake has no issue yet). The flow is similar:
 
 1. Update `bootstrap.md` and `locate-imgui.md` with build-system-specific scaffolding.
 2. Update `scripts/locate-imgui.sh` to recognize that build system's typical layout.
@@ -86,9 +86,9 @@ Build systems other than CMake are also tracked as Linear feature requests (MAIN
 
 ## Issue routing
 
-- **New backends, build systems, asset templates** → Linear feature request, team `main`.
+- **New backends, build systems, asset templates** → GitHub issue; a maintainer labels it `feature`.
 - **Newly discovered ImGui pitfalls** → research note in `vendor/notes/issues/<topic>.md` (gitignored), then promote to `references/pitfalls-catalog.md` plus the relevant deep-dive doc when you've confirmed the reproducer.
-- **Friction with this plugin's own tooling** (eval flow, vendor setup, hook noise) → Linear `friction` label.
+- **Friction with this plugin's own tooling** (eval flow, vendor setup, test harness) → GitHub issue; a maintainer labels it `friction`.
 - **Plugin name / branding** → leave for the maintainer; bikeshed at release.
 
 ## Code of conduct
