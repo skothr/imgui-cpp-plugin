@@ -25,11 +25,11 @@ When you run a prompt, we'll later inspect the session transcript (and, for boot
 
 - **Trigger accuracy** — did `imgui-cpp:imgui-cpp-development` activate on its own from the prompt phrasing, or did you have to invoke it manually?
 - **Routing accuracy** — did you load the right reference doc(s) and avoid loading siblings the prompt doesn't need?
-- **Idiom adoption** — RAII scope guards from `imscoped.hpp`, `std::print` for diagnostics, the v1.92 font defaults, the docking-branch IO config flags, etc.
+- **Idiom adoption** — RAII scope guards from `imscoped.hpp`, the skill's diagnostics convention (`std::fprintf` by default), the v1.92 font defaults, the docking-branch IO config flags, etc.
 - **Diagnosis correctness** (for debug prompts) — did you hit the canonical root cause that `references/pitfalls-catalog.md` documents?
 - **Output portability** — does the produced project actually scaffold cleanly without the user having to fix paths or re-include vendored content?
 
-If you notice the skill misbehaving (mis-trigger, wrong routing, stale advice, false-positive lint), file a friction-labeled Linear issue or note it explicitly in your reply so the user can capture it.
+If you notice the skill misbehaving (mis-trigger, wrong routing, stale advice, false-positive lint), file a `friction`-labeled GitHub issue in this repo or note it explicitly in your reply so the user can capture it.
 
 ## Adding a new prompt (for the user / a future me)
 
@@ -39,6 +39,6 @@ If you notice the skill misbehaving (mis-trigger, wrong routing, stale advice, f
 4. For debug prompts, include the broken code inline as a fenced code block.
 5. Add a one-line description to `tests/README.md`'s prompt table so the index stays current.
 
-## Test outputs are not gitignored by default
+## Test outputs are gitignored
 
-Test sessions create real subdirectories with real files under `tests/`. They are not in `.gitignore` — commit them when a run produces useful evidence (for example, a botched diagnosis worth referencing in a Linear issue, or a polished scaffold worth using as a baseline). If you produce throwaway artifacts you don't want in history, delete the subdir before exiting the session.
+Test sessions create real subdirectories with real files under `tests/`. The per-prompt output dirs (`tests/<NN>-<slug>/`) and `tests/archived/` are in `.gitignore`, so a run leaves nothing to commit. When a run produces evidence worth keeping (for example, a botched diagnosis), quote the relevant part in a GitHub issue rather than committing the output.

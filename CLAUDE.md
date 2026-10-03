@@ -4,113 +4,101 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A Claude Code **plugin** that ships an `imgui-cpp-development` skill (plus slash commands and hooks) for working with [Dear ImGui](https://github.com/ocornut/imgui) in C++23. Pinned upstream target: **v1.92.7-docking**. License: MIT.
+A Claude Code **plugin** that ships an `imgui-cpp-development` skill and slash commands for working with [Dear ImGui](https://github.com/ocornut/imgui) in C++23. Pinned upstream target: **v1.92.7-docking**. License: MIT.
 
-This file is *for developers of this plugin*. The shipped skill has its own audience-facing documentation in `skills/imgui-cpp-development/SKILL.md`. Don't conflate the two — what's true for *us* (vendor-grounded research, eval-driven changes) is not what the shipped skill should tell its users.
+This file is for developers of the plugin. The shipped skill has its own audience-facing documentation in `skills/imgui-cpp-development/SKILL.md`. What is true for plugin developers (vendor-grounded research, eval-driven changes) is not what the shipped skill should tell its users.
+
+**This repo is public.** Nothing committed or posted here (files, commit messages, PR and issue text) may contain absolute local paths, machine-specific or personal configuration, credentials, or identifiers from private trackers. Use repo-relative paths and placeholders such as `<repo-root>`.
 
 ## Architecture
 
 ```
-.claude-plugin/        plugin manifest + marketplace metadata
-skills/                the imgui-cpp-development skill (parent SKILL.md + references/ + scripts/ + assets/)
-commands/              slash commands that route through the skill
-hooks/                 post-edit hooks (non-blocking, report-only)
-docs/superpowers/      design specs and implementation plans for our brainstorming/dev workflow
-evals/                 skill-creator eval fixtures (test prompts + assertions)
-vendor/                .gitignored — upstream sources we research against (recreate via scripts/setup-vendor.sh)
-scripts/               dev-time scripts (setup-vendor.sh, etc.)
+.claude-plugin/   plugin manifest + marketplace metadata
+skills/           the imgui-cpp-development skill (SKILL.md + references/ + scripts/ + assets/)
+commands/         slash commands that route through the skill
+evals/            skill-creator fixtures: evals.json (answer quality), trigger-eval.json (trigger accuracy)
+tests/            manual end-to-end prompt harness (run-prompt.py, prompts/); has its own CLAUDE.md for test sessions
+scripts/          dev-time scripts (setup-vendor.sh)
+vendor/           gitignored: upstream sources to research against (recreate via scripts/setup-vendor.sh)
+docs/superpowers/ gitignored: local design specs, not published
 ```
 
-The shipped skill is structured for **independent loadability**: every file under `skills/imgui-cpp-development/references/` stands alone, so the model loads exactly the docs needed for the task at hand and nothing else. The parent `SKILL.md` is a thin router; sub-docs do not implicitly depend on each other.
+The shipped skill is structured for **independent loadability**: every file under `skills/imgui-cpp-development/references/` stands alone, so the model loads only the docs the task needs. The parent `SKILL.md` is a thin router; sub-docs do not depend on each other.
+
+The plugin ships no hooks. The paired-call and pitfall lints are scripts (`imgui-pair.sh` and `imgui-lint.sh` under `skills/imgui-cpp-development/scripts/`) that `/imgui-review` runs.
 
 ## Development workflow
 
 ### Bring up `vendor/` first
 
-`vendor/` is the source of truth for everything in `references/`. **Always run** before substantive skill work:
+`vendor/` is the source of truth for everything in `references/`. Run this before substantive skill work:
 
 ```bash
 bash scripts/setup-vendor.sh
 ```
 
-This pulls Dear ImGui at the pinned `v1.92.7-docking` tag, plus GLFW and `imgui_test_engine` (for backend / testing research). Don't write skill content from training-data memory — read the actual source first. Dear ImGui's monofiles (`imgui.h`, `imgui.cpp`, `imgui_demo.cpp`, `imgui_internal.h`) are themselves the canonical reference, by upstream's own description.
+It pulls Dear ImGui at the pinned `v1.92.7-docking` tag, plus GLFW and `imgui_test_engine`. Do not write skill content from training-data memory; read the source first. Dear ImGui's monofiles (`imgui.h`, `imgui.cpp`, `imgui_demo.cpp`, `imgui_internal.h`) are the canonical reference, by upstream's own description.
+
+Treat `vendor/` as read-only. Never edit upstream source; write findings to `vendor/notes/` (gitignored) or into a reference doc.
 
 ### Use clangd / LSP for navigating ImGui
 
-Generate `compile_commands.json` for `vendor/imgui` once (instructions in `skills/imgui-cpp-development/references/lsp-navigation.md`), then use the `LSP` tool's `workspaceSymbol` for "find this function" lookups, `documentSymbol` for monofile TOCs, and `goToDefinition` / `findReferences` / `hover` for navigation. This is dramatically more reliable than grep on a 30k-line monofile.
+Generate `compile_commands.json` for `vendor/imgui` once (instructions in `skills/imgui-cpp-development/references/lsp-navigation.md`). Then use the `LSP` tool: `workspaceSymbol` to find a function, `documentSymbol` for a monofile's table of contents, and `goToDefinition` / `findReferences` / `hover` for navigation. Grep on a 30k-line monofile returns too many textual matches to be reliable for symbol lookups.
 
 ### Every skill change goes through skill-creator
 
-When editing `SKILL.md` or any file under `skills/imgui-cpp-development/`, route through the `skill-creator` skill. Reasons:
+When editing `SKILL.md` or any file under `skills/imgui-cpp-development/`, route through the `skill-creator` skill:
 
-- Description-string changes affect trigger accuracy. The skill-creator evals verify trigger precision/recall across realistic prompts, including should-not-trigger negatives.
-- Reference-doc changes affect routing accuracy and answer quality. The eval loop catches regressions a human reviewer would miss.
-- Bundled scripts/assets benefit from the "do all test cases reinvent this?" check that skill-creator's transcript review surfaces.
+- A description-string change affects trigger accuracy. `evals/trigger-eval.json` measures precision and recall across realistic prompts, including should-not-trigger negatives.
+- A reference-doc change affects routing accuracy and answer quality. `evals/evals.json` holds the cases that catch regressions.
+- Bundled scripts and assets benefit from skill-creator's transcript review, which shows when every test case reinvents the same helper.
 
-The eval loop lives in `evals/` (test prompts + assertions). New significant content additions warrant a new eval test case.
+There is no standalone eval runner script (#11); skill-creator drives the fixtures in `evals/`. A significant content addition gets a new eval case.
+
+For an end-to-end check of the plugin in a fresh session, use `tests/run-prompt.py` (usage in `tests/README.md`).
 
 ### Issue routing
 
-- **Backend support requests** (Vulkan/DX11/DX12/Metal/WebGPU/SDL3/etc.) → Linear feature requests, team `main`. Already filed: MAIN-2…MAIN-7.
-- **Build-system support requests** (Meson/Bazel/Premake/Makefile) → Linear feature requests, team `main`. Already filed: MAIN-8…MAIN-11.
-- **Newly discovered ImGui pitfalls** → research note in `vendor/notes/issues/<topic>.md` (gitignored), then promote to `references/pitfalls-catalog.md` + the relevant deep-dive doc when validated.
-- **Friction with this plugin's tooling itself** (eval flow, vendor setup, hook noise) → Linear `friction` label.
+Everything is tracked in this repo's GitHub Issues. Search before filing.
 
-### Never use emoji characters
+- **Backend support** (Vulkan, DX11, DX12, Metal, WebGPU, SDL3): existing issues #27-#32.
+- **Build-system support** (Meson, Bazel, Makefile, Premake): existing issues #24-#26; Premake has none yet.
+- **Newly discovered ImGui pitfalls**: research note in `vendor/notes/issues/<topic>.md` (gitignored), then promote to `references/pitfalls-catalog.md` and the relevant deep-dive doc once validated.
+- **Friction with this plugin's own tooling** (eval flow, vendor setup, test harness): issue with the `friction` label.
 
-DO NOT EVER use emojis, unless it's obvious that emojis are SPECIFICALLY called for, as in it is EXPLICITLY asked for from the user (e.g. the user uses emoji characters in his instructions, or the project is OBVIOUSLY using them already for some reason. This will only EVER be applicable to projects where emoji characters need to be supported or a project the user didn't write. **Emojis are weird to see in a terminal, and are unprofessional when used in markdown/README.md, or really any other text.**
+### No emoji or decorative symbols in repo content
 
-This applies to: code, scripts, prompts, READMEs, commit messages, CLAUDE.md edits, memory entries, Linear issues, and anything else with text. Stars (★), checkmarks (✓), warning signs (⚠), gears (⚙), etc. all count as emoji-grade decoration and should not appear.
+Committed files, commit messages, and PR and issue text contain no emoji and no decorative symbols (stars, checkmarks, warning signs, gears). The only exception is content that must exercise such characters, such as a font-glyph example.
 
-### Search vague tool errors early; don't bisect for hours
+### Branches and PRs
 
-When a Claude Code (or any) error message:
+- Work on a feature branch off an up-to-date `main`. Nothing is committed directly to `main`.
+- Commit in small, well-described steps. Push the branch and open a PR; a human merges it.
+- Never auto-merge, never force-push or amend `main`, and never delete an unmerged branch or its worktree unless the owner has abandoned it.
+- When a merge is requested, preserve the commit history rather than squashing unless asked.
 
-- Tells the user to do something that obviously isn't the cause (e.g., "Update Claude Code" when a structurally-similar plugin works in the same session), OR
-- Is generic when the failure looks specific, OR
-- Survives 1–2 reasonable local-config bisect attempts
+`main` must always be a shippable state: `/plugin marketplace add` and `/plugin install` consume the default branch, so a merge is a release to users.
 
-…stop poking and **web-search the exact error text plus the tool name**. Most user-hostile error strings map to known upstream bugs. The cost of an extra search is trivial; the cost of three more bisect rounds isn't.
+### Plugin install caveat: marketplace name avoids the `claude-` prefix
 
-For Claude Code specifically, prefer searching `github.com/anthropics/claude-code/issues`. We hit `Failed to install: This plugin uses a source type your Claude Code version does not support.` early in this repo's bootstrap and bisected for ~2 hours through manifest fields, hooks layout, directory structure, etc. — the actual cause was a substring collision in Claude Code's marketplace-name validator (sibling of [issue #56043](https://github.com/anthropics/claude-code/issues/56043)). The marketplace was named `claude-imgui-cpp`; renaming to `imgui-cpp-local` resolved it instantly. One search of the error string would have surfaced the matching report immediately.
+The marketplace is named `imgui-cpp-local`, not `claude-imgui-cpp`. Claude Code's marketplace-name validator rejects certain substring patterns at install time with a misleading error: `Failed to install: This plugin uses a source type your Claude Code version does not support.` The `claude-` prefix appears to be one such pattern (related: [claude-code issue #56043](https://github.com/anthropics/claude-code/issues/56043)). After renaming the marketplace, test `/plugin install <plugin>@<new-name>` from a fresh session.
 
-### Plugin install caveat — marketplace name avoids `claude-` prefix
-
-This repo's marketplace is named `imgui-cpp-local` (not `claude-imgui-cpp`) because Claude Code's marketplace-name validator silently rejects certain substring patterns at install time with a misleading "source type not supported" error. The `claude-` prefix appears to be one of those colliding patterns. If you rename the marketplace, test `/plugin install <plugin>@<new-name>` from a fresh session before assuming the new name works.
-
-### Tool discipline (inherited from the user's global CLAUDE.md, summarized here)
-
-- Prefer `Read` / `Edit` / `Write` over `Bash(cat/sed/echo)` for file work.
-- Prefer `LSP` over grep for symbol navigation in the vendored monofiles.
-- For broad codebase questions, dispatch the `Explore` subagent rather than chaining greps.
-- Don't run pyright proactively; rely on `<new-diagnostics>` arrivals.
-- Subagents inherit no CLAUDE.md context — every dispatched subagent prompt must include the tool rules it needs.
-- Treat `vendor/` as read-only research. Never edit upstream source — write findings to `vendor/notes/` (gitignored) or directly into a reference doc.
-
-### Worktree-driven development; merges to `main` only on request
-
-For non-trivial work in this repo, follow this loop:
-
-1. **Create a worktree before starting.** Use the `superpowers:using-git-worktrees` skill, or run `git worktree add ../imgui-cpp-plugin-<topic-slug> -b <topic-slug>` directly. The worktree is where all edits land; `main`'s working tree stays clean.
-2. **Commit freely inside the worktree.** Small, well-described commits are encouraged — they're free to make and they let the user diff your work checkpoint-by-checkpoint instead of squinting at one giant working-tree diff. No need to ask before each commit; the worktree is your scratch space.
-3. **Don't merge to `main` on your own initiative.** The user reviews the worktree's commits and explicitly says "merge", "land", or "ship X" before any worktree commits cross over to `main`. Until then, `main` does not change. When the merge is requested, fast-forward or rebase the worktree branch onto `main` — preserve the commit history rather than squashing unless the user asks.
-4. **Trivial edits to `main` are OK only for the smallest in-place fixes** the user explicitly asked for — typos, single-line tweaks during an active conversation about that file. Anything that takes more than a couple of edits should branch off into a worktree first.
-5. **Never force-push, never amend `main`'s shared history**, never delete a worktree branch the user hasn't merged or explicitly abandoned. The worktree IS the audit trail; preserving it preserves the user's ability to review.
-
-Why: this gives the user fine-grained review on every change without slowing development inside the worktree, and keeps `main` exactly as the user last approved it. It also matches how the plugin install path consumes the repo — `/plugin install` reads from the filesystem at the marketplace's registered location (`main`'s working tree), so users always get a published-and-approved state until a merge ships new work.
+That error cost about two hours of bisecting manifest fields before a search of the exact error text found the cause. When a tool's error message is generic or points at something that is not the cause, search the exact text (for Claude Code, in `github.com/anthropics/claude-code/issues`) before bisecting local config.
 
 ## Default conventions the shipped skill recommends
 
-These are baked into the skill content; mirrored here so dev-time edits stay aligned:
+These are defined in `skills/imgui-cpp-development/SKILL.md` ("Default conventions") and mirrored here so dev-time edits stay aligned:
 
-- **RAII scope guards by default** — see `assets/imscoped.hpp`. Pair every Begin/End-style call.
-- **`std::expected<T, GfxError>` at API boundaries** for fallible resource ops.
-- **`std::print` / `std::println`** for diagnostics.
-- **No modules, no coroutines, no aggressive ranges-based widget views in v1.**
-- **Strict ID-stack hygiene** — `PushID(ptr)` for objects, `PushID(int)` for stable indices, never bare auto-labels in loops.
-- **Begin/End pairing rules** — top-level `Begin` always paired with `End` regardless of return; `BeginChild` / `BeginPopup` / `BeginTreeNode` pair `End*` only when the call returned true. Encode this at compile time via the scope guards.
+1. **RAII scope guards for every paired call**: see `assets/imscoped.hpp`.
+2. **Begin/End pairing rules**: `Begin` and `BeginChild` pair with their `End` regardless of the return value; every other `Begin*` pairs with `End*` only when it returned true. The scope guards encode this.
+3. **`std::expected<T, GfxError>` at API boundaries** for fallible resource ops.
+4. **Diagnostics default to `std::fprintf` / `std::printf`**; `std::print` / `std::println` only where the toolchain is confirmed to support `<print>`.
+5. **Strict ID-stack hygiene**: `PushID(ptr)` for objects, `PushID(int)` for stable indices, no bare auto-labels in loops.
+6. **No modules, no coroutines, no aggressive ranges-based widget views in v1.**
+7. **Third-party headers are SYSTEM includes** in generated CMake.
+8. **Cite upstream line numbers only from references loaded in the current session.**
 
-If a dev-time edit changes one of these, update both this file and `skills/imgui-cpp-development/SKILL.md` in the same change.
+If a dev-time edit changes one of these, update this file and `SKILL.md` in the same change.
 
 ## Common commands
 
@@ -118,8 +106,8 @@ If a dev-time edit changes one of these, update both this file and `skills/imgui
 # Bring up vendor sources (run after a fresh clone)
 bash scripts/setup-vendor.sh
 
-# Run the skill eval loop (against current SKILL.md + references)
-bash evals/run-evals.sh
+# Run one end-to-end test prompt against the plugin (from tests/)
+./run-prompt.py <NN>-<slug>
 
 # Locate ImGui in a target project (sanity-check the locate-imgui flow)
 bash skills/imgui-cpp-development/scripts/locate-imgui.sh /path/to/some/cpp/project

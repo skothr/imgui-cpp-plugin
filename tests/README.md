@@ -9,7 +9,7 @@ See [CLAUDE.md](CLAUDE.md) for the test-session contract (what the session is al
 | ID | Prompt | Type | What it tests |
 |---|---|---|---|
 | 01 | [hello-world-glfw](prompts/01-hello-world-glfw.md) | bootstrap | greenfield CMake + GLFW + OpenGL3 scaffold; demo window renders |
-| 02 | [tools-panel](prompts/02-tools-panel.md) | bootstrap | basic widget submission (sliders, checkbox, color edit); `std::print` adoption |
+| 02 | [tools-panel](prompts/02-tools-panel.md) | bootstrap | basic widget submission (sliders, checkbox, color edit); diagnostics convention |
 | 03 | [sortable-file-table](prompts/03-sortable-file-table.md) | bootstrap | `BeginTable` + sorting + row spanning; `ImGuiListClipper` mention |
 | 04 | [debug-delete-button](prompts/04-debug-delete-button.md) | diagnostic | ID-stack collision routing → `references/id-stack.md` |
 | 05 | [debug-child-grows](prompts/05-debug-child-grows.md) | diagnostic | Layout/sizing feedback-loop routing -> `references/layout-and-sizing.md` (user-flagged pain area) |
@@ -62,7 +62,7 @@ After the run:
 
 1. Inspect the produced `<NN>-<slug>/` subdir for the artifacts.
 2. Grade routing decisions and idiom adoption against `prompts/README.md`'s rubric. The `--json` transcript makes tool-use grading much easier than reading text.
-3. Note misbehavior in a Linear `friction` issue or as a new test case under `evals/`, or both.
+3. Note misbehavior in a `friction`-labeled GitHub issue or as a new test case under `evals/`, or both.
 
 ### Manual equivalent (skip the wrapper)
 
@@ -97,7 +97,7 @@ Why this is the right call for tests:
 
 - **Always tests the freshest source.** No global install to keep in sync with the working tree, no cache-staleness ("which commit did I install?" vs "what's on disk now?"), no need to reinstall after every edit.
 - **No global state to clean up.** When the test exits, nothing is left in `~/.claude/plugins/` for the test. Whatever globally-installed copy you have for normal use is untouched.
-- **Sidesteps the worktree footgun.** The local-scope-vs-worktree issue (Linear MAIN-19) doesn't apply because we're not relying on installed-plugin scope at all. The user-scope-during-dev workaround (Linear MAIN-20) similarly doesn't apply for these test runs — though you may still want a globally-installed copy for everyday work outside the test harness.
+- **Sidesteps the worktree footgun.** The local-scope-vs-worktree issue doesn't apply because we're not relying on installed-plugin scope at all. The user-scope-during-dev workaround similarly doesn't apply for these test runs — though you may still want a globally-installed copy for everyday work outside the test harness.
 
 If you DO have a globally-installed copy of `imgui-cpp` AND run a test, the per-session `--plugin-dir` version takes precedence for that one run. Global state is unchanged.
 
@@ -111,8 +111,8 @@ If you DO have a globally-installed copy of `imgui-cpp` AND run a test, the per-
 After each test run:
 
 - If the skill behaved correctly: note what worked. Repeat-runs build confidence.
-- If the skill misbehaved: capture the failure mode in a Linear issue (label `friction` for skill UX issues, `bug` for actually-wrong content). The skill-creator iteration loop in `evals/` is the right place to formalize a regression test for it.
-- Persistent test outputs that document interesting failure modes are worth committing; throwaway successful runs aren't.
+- If the skill misbehaved: capture the failure mode in a GitHub issue (label `friction` for skill UX issues, `bug` for actually-wrong content). The skill-creator iteration loop in `evals/` is the right place to formalize a regression test for it.
+- Test output dirs are gitignored. Quote an interesting failure in the issue rather than committing the output.
 
 ## Adding more prompts
 
