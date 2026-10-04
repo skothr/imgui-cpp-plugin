@@ -1,0 +1,40 @@
+name: format-tool
+
+# This job tests the formatter. It does not run `imtool_format.py --check` over
+# toolkit C++, because there is no toolkit C++ on the default branch yet. That
+# step is added with the first library sources.
+
+on:
+  pull_request:
+    paths:
+      - "toolkit/tools/format/**"
+      - ".clang-format"
+      - ".github/workflows/format.yml"
+  push:
+    branches: [main]
+    paths:
+      - "toolkit/tools/format/**"
+      - ".clang-format"
+      - ".github/workflows/format.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Install the pinned clang-format
+        # requirements.txt lists the sha256 of each wheel, so pip checks the download.
+        run: pip install --require-hashes -r toolkit/tools/format/requirements.txt
+      - name: Run the formatter's unit tests
+        # Without the pinned binary the tests that run clang-format skip. In CI that
+        # must fail the job, so the variable turns each skip into a test failure.
+        env:
+          IMTOOL_FORMAT_REQUIRE_BINARY: "1"
+        run: python3 -m unittest discover -s toolkit/tools/format -p 'test_*.py' -v
