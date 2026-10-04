@@ -18,6 +18,7 @@ skills/           the imgui-cpp-development skill (SKILL.md + references/ + scri
 commands/         slash commands that route through the skill
 evals/            skill-creator fixtures: evals.json (answer quality), trigger-eval.json (trigger accuracy)
 tests/            manual end-to-end prompt harness (run-prompt.py, prompts/); has its own CLAUDE.md for test sessions
+toolkit/          the imtool C++ library: docs/conventions.md (rules and layout), tools/format/ (the formatter)
 scripts/          dev-time scripts (setup-vendor.sh)
 vendor/           gitignored: upstream sources to research against (recreate via scripts/setup-vendor.sh)
 docs/superpowers/ gitignored: local design specs, not published
@@ -26,6 +27,14 @@ docs/superpowers/ gitignored: local design specs, not published
 The shipped skill is structured for **independent loadability**: every file under `skills/imgui-cpp-development/references/` stands alone, so the model loads only the docs the task needs. The parent `SKILL.md` is a thin router; sub-docs do not depend on each other.
 
 The plugin ships no hooks. The paired-call and pitfall lints are scripts (`imgui-pair.sh` and `imgui-lint.sh` under `skills/imgui-cpp-development/scripts/`) that `/imgui-review` runs.
+
+## The imtool toolkit
+
+`toolkit/` holds `imtool`, a C++23 library that refines and unifies the owner's older Dear ImGui work: the same designs and the same code style, kept modular, modernized only where it makes sense (for example `[[nodiscard]]`, concepts, `constexpr`). When a change departs from the prior-art design or style, say so and give the reason.
+
+- Read `toolkit/docs/conventions.md` before writing toolkit code. It defines naming, ownership and the code layout.
+- Format toolkit C++ with `python3 toolkit/tools/format/imtool_format.py <files>`, never with plain clang-format. The repo-root `.clang-format` disables plain clang-format so that an editor or hook cannot reflow the code. `--check` reports files that are not in the layout and control statements without braces.
+- The formatter needs the pinned clang-format: `pip install -r toolkit/tools/format/requirements.txt`.
 
 ## Development workflow
 

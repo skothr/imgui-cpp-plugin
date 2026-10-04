@@ -1,0 +1,28 @@
+name: format-tool
+
+on:
+  pull_request:
+    paths:
+      - "toolkit/tools/format/**"
+      - ".github/workflows/format.yml"
+  push:
+    branches: [main]
+    paths:
+      - "toolkit/tools/format/**"
+      - ".github/workflows/format.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the pinned clang-format
+        run: pip install -r toolkit/tools/format/requirements.txt
+      - name: Run the formatter's unit tests
+        run: python3 -m unittest discover -s toolkit/tools/format -p 'test_*.py' -v
