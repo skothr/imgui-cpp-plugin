@@ -7,9 +7,11 @@ Run from the repository root:
 The post-pass tests feed text shaped like clang-format output (GNU brace layout, 2-space indent)
 and need no binary.  Tests that run clang-format use the binary the tool itself would find
 ($IMTOOL_CLANG_FORMAT, the pip package, PATH) and are skipped when that binary is not the
-version pinned in the first line of imtool.clang-format.
+version pinned in the first line of imtool.clang-format.  With IMTOOL_FORMAT_REQUIRE_BINARY=1
+in the environment (set in CI) they fail instead of skipping.
 """
 
+import functools
 import os
 import re
 import shutil
@@ -22,7 +24,9 @@ import unittest
 
 # The scripts import each other by their path from the repository root, so that the imports
 # resolve the same way for Python and for a type checker run from the root.
-REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
+)
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
@@ -42,10 +46,29 @@ def pinned_binary():
 
 
 BINARY = pinned_binary() or ""
-needs_binary = unittest.skipUnless(
-    BINARY,
-    f"clang-format {PINNED} not found (pip install clang-format=={PINNED}, or set IMTOOL_CLANG_FORMAT)",
-)
+NO_BINARY = f"clang-format {PINNED} not found (pip install clang-format=={PINNED}, or set IMTOOL_CLANG_FORMAT)"
+# Set in CI: a missing pinned binary then fails the tests that need it instead of skipping them.
+REQUIRE_BINARY = os.environ.get("IMTOOL_FORMAT_REQUIRE_BINARY", "") not in ("", "0")
+
+
+def needs_binary(obj):
+    """Decorator for a test or a test class that runs clang-format.
+
+    Without the pinned binary the test is skipped, or fails when IMTOOL_FORMAT_REQUIRE_BINARY
+    is set to anything but '' or '0'.
+    """
+    if BINARY:
+        return obj
+    if not REQUIRE_BINARY:
+        return unittest.skip(NO_BINARY)(obj)
+
+    def fail(self, *args, **kwargs):
+        self.fail(NO_BINARY)
+
+    if isinstance(obj, type):
+        obj.setUp = fail
+        return obj
+    return functools.wraps(obj)(fail)
 
 
 def d(s):
@@ -118,6 +141,89 @@ class LexTests(Base):
         self.assertEqual(
             self.kinds("a /* x * y\n z */ b")[1], ("bc", "/* x * y\n z */")
         )
+
+    def pp(self, s):
+        return [t for k, t in I.lex(s) if k == "pp"]
+
+    def test_comment_marker_in_a_directive_string_does_not_start_a_comment(self):
+        src = '#define GLOB "src/*"\nint x; /* c */\n'
+        self.assertEqual(
+            self.kinds(src),
+            [
+                ("pp", '#define GLOB "src/*"'),
+                ("id", "int"),
+                ("id", "x"),
+                ("op", ";"),
+                ("bc", "/* c */"),
+            ],
+        )
+        # without a later '*/' the directive used to run to the end of the file
+        self.assertEqual(
+            self.pp('#define OPEN "/*"\nif(a) g();\n'), ['#define OPEN "/*"']
+        )
+        self.assertEqual(
+            self.pp('#define S "a\\"/*"\nint x; /* c */\n'), ['#define S "a\\"/*"']
+        )
+        self.assertEqual(
+            self.pp('#include "dir/*.h"\nint x; /* c */\n'), ['#include "dir/*.h"']
+        )
+
+    def test_comment_marker_in_a_directive_character_literal(self):
+        self.assertEqual(
+            self.pp("#define C '/*'\nint x; /* c */\n"), ["#define C '/*'"]
+        )
+        # the quote in the character literal does not open a string
+        self.assertEqual(
+            self.pp("#define Q '\"' /* a\n b */ + 1\nint x;\n"),
+            ["#define Q '\"' /* a\n b */ + 1"],
+        )
+        # a digit separator is not a character literal
+        self.assertEqual(
+            self.pp("#define N 1'000 /* a\n b */\nint x;\n"),
+            ["#define N 1'000 /* a\n b */"],
+        )
+
+    def test_line_comment_marker_in_a_directive_string(self):
+        # the '//' is inside the string, so the block comment after it belongs to the directive
+        self.assertEqual(
+            self.pp('#define URL "http://x" /* a\n b */\nint x;\n'),
+            ['#define URL "http://x" /* a\n b */'],
+        )
+        self.assertEqual(
+            self.pp("#define SL '//' /* a\n b */\nint x;\n"),
+            ["#define SL '//' /* a\n b */"],
+        )
+
+    def test_comment_marker_in_a_continued_directive_string(self):
+        src = '#define M(x) \\\n  f("a/*", \\\n    x)\nint y; /* c */\n'
+        self.assertEqual(self.pp(src), ['#define M(x) \\\n  f("a/*", \\\n    x)'])
+        src = '#define M(x) \\\r\n  f("//", x) /* a\r\n b */\r\nint y;\r\n'
+        self.assertEqual(
+            self.pp(src), ['#define M(x) \\\r\n  f("//", x) /* a\r\n b */']
+        )
+
+    def test_comment_marker_in_a_directive_raw_string(self):
+        self.assertEqual(
+            self.pp('#define R R"x(/* " )x"\nint y; /* c */\n'),
+            ['#define R R"x(/* " )x"'],
+        )
+
+    def test_real_comments_in_a_directive_still_end_or_extend_it(self):
+        self.assertEqual(
+            self.pp("#define A 1 /* a\n b */ + 2\nint x;\n"),
+            ["#define A 1 /* a\n b */ + 2"],
+        )
+        self.assertEqual(
+            self.pp("#define A 1 // c /*\nint x; /* d */\n"), ["#define A 1 // c /*"]
+        )
+        self.assertEqual(
+            self.pp("#error don't /* a */ do this\nint x;\n"),
+            ["#error don't /* a */ do this"],
+        )
+
+    def test_swallowed_code_was_hidden_from_the_brace_check(self):
+        src = '#define OPEN "/*"\nvoid f()\n{\n  if(a) g();\n}\n'
+        self.assertEqual([ln for ln, _ in I.unbraced_bodies(src)], [4])
 
     def test_token_signature_detects_merged_words_and_new_comment(self):
         self.assertNotEqual(I.token_signature("int x;"), I.token_signature("intx;"))
@@ -238,6 +344,57 @@ class BraceTests(Base):
 
     def test_subscript_before_brace_is_not_a_lambda(self):
         self.unchanged("void f()\n{\n  if(a[i])\n    {\n      g(); // why\n    }\n}\n")
+
+    def test_attribute_before_a_brace_is_not_a_lambda(self):
+        # the layouts clang-format gives a block that follows a statement attribute
+        self.unchanged(
+            d("""
+            void f(int x)
+            {
+              switch(x)
+                {
+                case 1:
+                  [[likely]]
+                  {
+                    a();
+                    b();
+                    c();
+                    d();
+                  }
+                default: e();
+                }
+              g();
+              [[likely]] /* why */
+              {
+                a();
+                b();
+                c();
+                d();
+              }
+              h();
+              [[gnu::hot]] // why
+              {
+                a();
+                b();
+                c();
+                d();
+              }
+              if(x) [[likely]]
+                {
+                  g(); // why
+                }
+              else [[unlikely]]
+                {
+                  h(); // why
+                }
+            }
+            """)
+        )
+
+    def test_lambda_with_an_attribute_is_still_a_lambda(self):
+        src = "void f()\n{\n  auto m = [](int q) [[gnu::cold]]\n    {\n      a();\n      return q;\n    };\n}\n"
+        want = "void f()\n{\n  auto m = [](int q) [[gnu::cold]]\n  {\n    a();\n    return q;\n  };\n}\n"
+        self.assertEqual(self.post(src), want)
 
     def test_do_while_tail_is_joined(self):
         src = "void f()\n{\n  do\n    {\n      x++;\n      y--;\n    }\n  while(x < 3);\n}\n"
@@ -786,6 +943,46 @@ class BraceCheckTests(unittest.TestCase):
         self.assertEqual(found[0][1], "if(a) g();")
         self.assertEqual(found[3][1], "for(int i = 0; i < n; i++) g();")
 
+    def test_statement_attribute_before_a_braced_body_is_clean(self):
+        src = d("""
+            void f()
+            {
+              if(a) [[likely]] { g(); }
+              else [[unlikely]] { h(); }
+              if(a) [[likely]]
+                {
+                  g();
+                }
+              else if(b) [[unlikely]] { h(); }
+              for(int i = 0; i < n; i++) [[likely]] { g(); }
+              while(x) [[unlikely]] { x--; }
+              do [[likely]] { x++; } while(x < 3);
+              if(a) [[likely]] [[gnu::hot]] { g(); }
+              if(a) [[gnu::hot, likely]] { g(); }
+              if constexpr(c) [[likely]] { g(); }
+            }
+            """)
+        self.assertEqual(I.unbraced_bodies(src), [])
+
+    def test_statement_attribute_before_an_unbraced_body_is_reported(self):
+        src = d("""
+            void f()
+            {
+              if(a) [[likely]] g();
+              else [[unlikely]] h();
+              for(int i = 0; i < n; i++) [[likely]] g();
+              while(x) [[unlikely]] x--;
+              do [[likely]] x++; while(x < 3);
+              if(a) [[likely]]
+                g();
+              if(a) [[likely]] v[0] = 1;
+            }
+            """)
+        self.assertEqual(self.lines(src), [3, 4, 5, 6, 7, 8, 10])
+
+    def test_subscript_or_lambda_after_the_condition_is_not_an_attribute(self):
+        self.assertEqual(self.lines("void f()\n{\n  if(a) [&] { g(); }();\n}\n"), [3])
+
     def test_else_if_chain_reports_only_the_unbraced_branch(self):
         self.assertEqual(
             self.lines("void f()\n{\n  if(a) { g(); }\n  else if(b) h();\n}\n"), [4]
@@ -906,6 +1103,47 @@ class LookupTests(unittest.TestCase):
         self.assertIn("style file not found", p.stderr)
 
 
+class RequireBinaryTests(unittest.TestCase):
+    """IMTOOL_FORMAT_REQUIRE_BINARY turns the skip of the binary-dependent tests into a failure."""
+
+    # one test that needs no binary, one decorated method and one decorated class
+    TARGETS = (
+        "LexTests.test_roundtrip",
+        "PropertyTests.test_format_twice_equals_once",
+        "CommandLineTests",
+    )
+
+    def run_tests_without_the_pinned_binary(self, require):
+        directory = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, directory)
+        env = dict(os.environ, IMTOOL_CLANG_FORMAT=fake_binary(directory, "1.2.3"))
+        env.pop("IMTOOL_FORMAT_REQUIRE_BINARY", None)
+        if require is not None:
+            env["IMTOOL_FORMAT_REQUIRE_BINARY"] = require
+        return subprocess.run(
+            [sys.executable, os.path.abspath(__file__), *self.TARGETS],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+
+    def test_without_the_variable_the_tests_skip(self):
+        for require in (None, "", "0"):
+            p = self.run_tests_without_the_pinned_binary(require)
+            self.assertEqual(p.returncode, 0, p.stderr)
+            self.assertRegex(p.stderr, r"OK \(skipped=\d+\)")
+
+    def test_with_the_variable_every_binary_test_fails(self):
+        p = self.run_tests_without_the_pinned_binary("1")
+        self.assertNotEqual(p.returncode, 0, p.stderr)
+        self.assertNotIn("skipped", p.stderr)
+        ran = int(re.search(r"Ran (\d+) tests?", p.stderr).group(1))
+        self.assertGreater(ran, 2)
+        self.assertIn(f"FAILED (failures={ran - 1})", p.stderr)
+        self.assertIn(f"clang-format {PINNED} not found", p.stderr)
+
+
 # --------------------------------------------------------------------------- whole-tool properties
 
 SAMPLE = d("""
@@ -1002,6 +1240,20 @@ class PropertyTests(Base):
     def test_format_twice_equals_once(self):
         once = I.format_text(SAMPLE, BINARY, STYLE, LIMIT, WIDTH)
         self.assertEqual(I.format_text(once, BINARY, STYLE, LIMIT, WIDTH), once)
+
+    @needs_binary
+    def test_block_after_a_statement_attribute_is_left_where_clang_format_puts_it(self):
+        src = "void f(int x) {\n  switch (x) { case 1: [[likely]] { a(); b(); c(); d(); } default: e(); }\n}\n"
+        out = I.format_text(src, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertEqual(out, I.run_clang_format(BINARY, STYLE, src))
+        self.assertIn("    case 1:\n      [[likely]]\n      {\n        a();\n", out)
+
+    @needs_binary
+    def test_attributed_control_statements_are_not_reported_after_formatting(self):
+        src = "void f(int x) {\n  if (x) [[likely]] { a(); b(); c(); d(); } else [[unlikely]] { a(); b(); c(); d(); }\n}\n"
+        out = I.format_text(src, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertIn("  if(x) [[likely]]\n    {\n", out)
+        self.assertEqual(I.unbraced_bodies(out), [])
 
     @needs_binary
     def test_format_keeps_tokens(self):

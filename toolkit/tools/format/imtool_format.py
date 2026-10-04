@@ -139,6 +139,10 @@ def lex(text):
                 ):
                     j += 2 if text[j + 1] == "\n" else 3
                     continue
+                if d in "\"'":
+                    # a comment marker inside a literal is not a comment
+                    j = _directive_literal_end(text, i, j)
+                    continue
                 if d == "/" and text.startswith("/*", j):
                     k = text.find("*/", j + 2)
                     j = n if k < 0 else k + 2
@@ -192,6 +196,43 @@ def lex(text):
             toks.append(("op", c))
             i += 1
     return toks
+
+
+_RAW_PREFIXES = ("R", "u8R", "uR", "UR", "LR")
+
+
+def _directive_literal_end(text, start, j):
+    """End of the string or character literal that opens at text[j] in the directive at `start`.
+
+    The literal ends after its closing quote, or at the end of the line when it has none
+    (the apostrophe in '#error don't').  A backslash-newline inside it continues the line.
+    """
+    n = len(text)
+    quote = text[j]
+    k = j
+    while k > start and (text[k - 1].isalnum() or text[k - 1] in "_.'"):
+        k -= 1
+    prefix = text[k:j]
+    if quote == "'" and prefix[:1].isdigit():
+        return j + 1  # digit separator: 1'000
+    if quote == '"' and prefix in _RAW_PREFIXES:
+        d = RAW_DELIM_RE.match(text, j + 1)
+        if d:
+            delim = text[j + 1 : d.end() - 1]
+            e = text.find(")" + delim + '"', d.end())
+            return n if e < 0 else e + len(delim) + 2
+    k = j + 1
+    while k < n:
+        ch = text[k]
+        if ch == "\\":
+            k += 3 if text.startswith("\\\r\n", k) else 2
+            continue
+        if ch == quote:
+            return k + 1
+        if ch == "\n" or (ch == "\r" and text.startswith("\r\n", k)):
+            return k
+        k += 1
+    return n
 
 
 def _quoted_end(text, j, quote):
@@ -363,11 +404,28 @@ def _enum_head(S, i):
     return None
 
 
+def _attribute_open(S, k):
+    """sig index of the outer '[' if sig[k] is the outer ']' of a '[[...]]' attribute, else None."""
+    if k < 3 or S.sig[k][2:] != ("op", "]") or S.sig[k - 1][2:] != ("op", "]"):
+        return None
+    o = S.match.get(k)
+    if o is None or S.sig[o + 1][2:] != ("op", "[") or S.match.get(o + 1) != k - 1:
+        return None
+    return o
+
+
 def _lambda_brace(S, i):
     """True if sig[i] ('{') opens a lambda body: it follows '[captures](params)' or '[captures]'."""
     k = i - 1
-    while k >= 0 and S.sig[k][2] == "id" and S.sig[k][3] in ("mutable", "noexcept", "constexpr"):
-        k -= 1
+    while k >= 0:
+        if S.sig[k][2] == "id" and S.sig[k][3] in ("mutable", "noexcept", "constexpr"):
+            k -= 1
+            continue
+        # a '[[...]]' attribute before the brace is not a capture list: 'case 1: [[likely]] {'
+        o = _attribute_open(S, k)
+        if o is None:
+            break
+        k = o - 1
     if k < 0 or S.sig[k][2] != "op":
         return False
     if S.sig[k][3] == ")":
@@ -384,7 +442,9 @@ def _lambda_brace(S, i):
         return True
     before = S.sig[o - 1]
     # '[' after a name, ')' or ']' is a subscript, not a lambda introducer
-    if before[2] in ("num", "str", "chr") or (before[2] == "id" and before[3] not in ("return", "co_return")):
+    if before[2] in ("num", "str", "chr") or (
+        before[2] == "id" and before[3] not in ("return", "co_return")
+    ):
         return False
     return not (before[2] == "op" and before[3] in (")", "]"))
 
@@ -393,7 +453,13 @@ def join_do_while(lines, S, limit):
     """'}' ending a do body and the 'while(..);' on the next line are joined: '} while(..);'."""
     drop = set()
     for i, (_li, _ci, kind, tok) in enumerate(S.sig):
-        if kind != "op" or tok != "{" or i == 0 or S.sig[i - 1][2] != "id" or S.sig[i - 1][3] != "do":
+        if (
+            kind != "op"
+            or tok != "{"
+            or i == 0
+            or S.sig[i - 1][2] != "id"
+            or S.sig[i - 1][3] != "do"
+        ):
             continue
         j = S.match.get(i)
         if j is None or j + 1 >= len(S.sig):
@@ -417,7 +483,6 @@ def join_do_while(lines, S, limit):
     if not drop:
         return lines
     return [ln for x, ln in enumerate(lines) if x not in drop]
-
 
 
 def find_shift_blocks(lines, S, indent_width):
@@ -503,7 +568,9 @@ def apply_shifts(lines, blocks):
     little indentation, or a block comment continuation line with too little indentation)."""
     pinned = _pinned_comments(lines)
     comment_only = {
-        x for x, ln in enumerate(lines) if ln.toks and all(k in ("lc", "ws") for k, _ in ln.toks)
+        x
+        for x, ln in enumerate(lines)
+        if ln.toks and all(k in ("lc", "ws") for k, _ in ln.toks)
     }
     while True:
         delta = [0] * len(lines)
@@ -780,7 +847,6 @@ def _strip_ws(toks):
     return toks
 
 
-
 def _control_keyword(S, i):
     """sig index of the keyword that starts the if / else if / else / for / while statement whose
     body opens at sig[i] ('{'), or None."""
@@ -789,9 +855,18 @@ def _control_keyword(S, i):
         return i - 1
     if pkind == "op" and ptok == ")":
         o = S.match.get(i - 1)
-        if o is not None and o > 0 and S.sig[o - 1][2] == "id" and S.sig[o - 1][3] in ("if", "for", "while"):
+        if (
+            o is not None
+            and o > 0
+            and S.sig[o - 1][2] == "id"
+            and S.sig[o - 1][3] in ("if", "for", "while")
+        ):
             kw = o - 1
-            if kw > 0 and S.sig[kw - 1][3] == "else" and S.sig[kw - 1][0] == S.sig[kw][0]:
+            if (
+                kw > 0
+                and S.sig[kw - 1][3] == "else"
+                and S.sig[kw - 1][0] == S.sig[kw][0]
+            ):
                 kw -= 1
             return kw
     return None
@@ -813,7 +888,12 @@ def _declaration_start(S, i):
                 depth -= 1
             elif depth == 0 and tok in (";", "{", "}"):
                 break
-            elif depth == 0 and tok == ":" and k > 0 and S.sig[k - 1][3] in ("public", "private", "protected"):
+            elif (
+                depth == 0
+                and tok == ":"
+                and k > 0
+                and S.sig[k - 1][3] in ("public", "private", "protected")
+            ):
                 break
         k -= 1
     start = k + 1
@@ -861,7 +941,11 @@ def join_bodies(lines, limit, max_statements, indent_width):
             # the braced body is already on one line of its own: '{ }' or '{ a; b; }'
             if S.sig[j][1] != len(code) - 1:
                 continue
-            before = [t for t in ln.toks[: _tok_index(ln, len(code) - 1)] if t[0] in ("lc", "bc")]
+            before = [
+                t
+                for t in ln.toks[: _tok_index(ln, len(code) - 1)]
+                if t[0] in ("lc", "bc")
+            ]
             if before:
                 continue
             packed = list(ln.toks)
@@ -873,10 +957,17 @@ def join_bodies(lines, limit, max_statements, indent_width):
             if nbody < 1 or nbody > max_statements:
                 continue
             cl = lines[lj]
-            if cl.code() != [("op", "}")] or cl.has_comment() or cl.protected or len(cl.indent) != len(ln.indent):
+            if (
+                cl.code() != [("op", "}")]
+                or cl.has_comment()
+                or cl.protected
+                or len(cl.indent) != len(ln.indent)
+            ):
                 continue
             body = lines[li + 1 : lj]
-            if not all(_simple_statement(b, len(ln.indent) + indent_width) for b in body):
+            if not all(
+                _simple_statement(b, len(ln.indent) + indent_width) for b in body
+            ):
                 continue
             packed = [("op", "{")]
             for b in body:
@@ -993,14 +1084,19 @@ def _function_signature_end(S, i):
 # --------------------------------------------------------------------------- post-pass
 
 
-
-def post_pass(text, limit=140, max_statements=3, indent_width=2, tight_ops=True, features=None):
+def post_pass(
+    text, limit=140, max_statements=3, indent_width=2, tight_ops=True, features=None
+):
     """Whitespace-only transforms on clang-format output.  See the module docstring.
 
     features: optional set limiting the transforms, from
     {"braces", "pointers", "operators", "bodies"}; None enables all (operators only if tight_ops).
     """
-    on = features if features is not None else {"braces", "pointers", "operators", "bodies"}
+    on = (
+        features
+        if features is not None
+        else {"braces", "pointers", "operators", "bodies"}
+    )
     lines = split_lines(text)
     mark_protected(lines)
     if "braces" in on:
@@ -1051,6 +1147,20 @@ def unbraced_bodies(text):
                 o = stack.pop()
                 match[i] = o
                 match[o] = i
+
+    def skip_attributes(k):
+        """Index after the '[[...]]' attributes that start at sig[k]: 'if(x) [[likely]] {'."""
+        while (
+            k + 1 < len(sig)
+            and sig[k][1:] == ("op", "[")
+            and sig[k + 1][1:] == ("op", "[")
+        ):
+            c = match.get(k)
+            if c is None or match.get(k + 1) != c - 1:
+                break
+            k = c + 1
+        return k
+
     src = text.split("\n")
     found = []
     do_tails = set()
@@ -1058,7 +1168,8 @@ def unbraced_bodies(text):
     for i, (ln, kind, tok) in enumerate(sig):
         if kind != "id" or tok not in ("if", "else", "for", "while", "do"):
             continue
-        nxt = sig[i + 1] if i + 1 < len(sig) else None
+        b = skip_attributes(i + 1)  # where the body of an else / do starts
+        nxt = sig[b] if b < len(sig) else None
         if nxt is None:
             continue
         if tok == "else":
@@ -1070,21 +1181,28 @@ def unbraced_bodies(text):
                 found.append(ln)
                 pending_do += 1
             else:
-                c = match.get(i + 1)
+                c = match.get(b)
                 if c is not None and c + 1 < len(sig) and sig[c + 1][2] == "while":
                     do_tails.add(c + 1)
             continue
         if i in do_tails:
             continue
         o = i + 1
-        while o < len(sig) and sig[o][1] == "id" and sig[o][2] in ("constexpr", "consteval"):
+        while (
+            o < len(sig)
+            and sig[o][1] == "id"
+            and sig[o][2] in ("constexpr", "consteval")
+        ):
             o += 1
         if o >= len(sig) or sig[o][2] != "(":
             continue
         c = match.get(o)
         if c is None or c + 1 >= len(sig):
             continue
-        after = sig[c + 1][2]
+        b = skip_attributes(c + 1)
+        if b >= len(sig):
+            continue
+        after = sig[b][2]
         if after == "{":
             continue
         if tok == "while" and after == ";" and pending_do:
@@ -1114,7 +1232,9 @@ def style_settings(style_file):
 def binary_version(binary):
     """Version string a clang-format binary reports ('23.1.2'), or None."""
     try:
-        p = subprocess.run([binary, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.run(
+            [binary, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
     except OSError:
         return None
     m = re.search(r"version (\d+(?:\.\d+)*)", p.stdout.decode("utf-8", "replace"))
@@ -1159,7 +1279,9 @@ def run_clang_format(binary, style_file, text):
         stderr=subprocess.PIPE,
     )
     if p.returncode != 0:
-        raise RuntimeError("clang-format failed: " + p.stderr.decode("utf-8", "replace").strip())
+        raise RuntimeError(
+            "clang-format failed: " + p.stderr.decode("utf-8", "replace").strip()
+        )
     return p.stdout.decode("utf-8", "surrogateescape")
 
 
@@ -1177,9 +1299,17 @@ def format_text(text, binary, style_file, limit=140, indent_width=2, max_rounds=
     those NoFixedPoint is raised and the caller leaves the file untouched, so that every file
     the tool does write is stable under a second run.
     """
-    out = post_pass(run_clang_format(binary, style_file, text), limit=limit, indent_width=indent_width)
+    out = post_pass(
+        run_clang_format(binary, style_file, text),
+        limit=limit,
+        indent_width=indent_width,
+    )
     for _ in range(max_rounds):
-        again = post_pass(run_clang_format(binary, style_file, out), limit=limit, indent_width=indent_width)
+        again = post_pass(
+            run_clang_format(binary, style_file, out),
+            limit=limit,
+            indent_width=indent_width,
+        )
         if again == out:
             return out
         out = again
@@ -1190,11 +1320,30 @@ def format_text(text, binary, style_file, limit=140, indent_width=2, max_rounds=
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description="Format C++ files: clang-format with the style file, then the post-pass.")
-    ap.add_argument("--check", action="store_true", help="write nothing; print files that would change; exit 1 if any")
-    ap.add_argument("--style-file", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "imtool.clang-format"))
-    ap.add_argument("--clang-format", dest="binary", help="clang-format binary (default: $IMTOOL_CLANG_FORMAT, the pip package, PATH)")
-    ap.add_argument("--no-brace-check", action="store_true", help="do not report control statements without braces")
+    ap = argparse.ArgumentParser(
+        description="Format C++ files: clang-format with the style file, then the post-pass."
+    )
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="write nothing; print files that would change; exit 1 if any",
+    )
+    ap.add_argument(
+        "--style-file",
+        default=os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "imtool.clang-format"
+        ),
+    )
+    ap.add_argument(
+        "--clang-format",
+        dest="binary",
+        help="clang-format binary (default: $IMTOOL_CLANG_FORMAT, the pip package, PATH)",
+    )
+    ap.add_argument(
+        "--no-brace-check",
+        action="store_true",
+        help="do not report control statements without braces",
+    )
     ap.add_argument("files", nargs="+")
     a = ap.parse_args(argv)
 
@@ -1204,16 +1353,25 @@ def main(argv=None):
         return 2
     pinned, limit, width = style_settings(style_file)
     if pinned is None:
-        print(f"imtool_format: {style_file}: the first line must name the pinned version ('# clang-format version X.Y.Z')", file=sys.stderr)
+        print(
+            f"imtool_format: {style_file}: the first line must name the pinned version ('# clang-format version X.Y.Z')",
+            file=sys.stderr,
+        )
         return 2
     install = f"pip install clang-format=={pinned}"
     binary = find_binary(a.binary)
     have = binary_version(binary) if binary else None
     if binary is None or have is None:
-        print(f"imtool_format: no clang-format binary found; install the pinned version with: {install}", file=sys.stderr)
+        print(
+            f"imtool_format: no clang-format binary found; install the pinned version with: {install}",
+            file=sys.stderr,
+        )
         return 2
     if have != pinned:
-        print(f"imtool_format: {binary} is clang-format {have}; the style file is pinned to {pinned}. Install it with: {install}", file=sys.stderr)
+        print(
+            f"imtool_format: {binary} is clang-format {have}; the style file is pinned to {pinned}. Install it with: {install}",
+            file=sys.stderr,
+        )
         return 2
 
     would_change = []
@@ -1221,7 +1379,9 @@ def main(argv=None):
     findings = 0
     for path in a.files:
         try:
-            with open(path, "r", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            with open(
+                path, "r", encoding="utf-8", errors="surrogateescape", newline=""
+            ) as f:
                 src = f.read()
             out = format_text(src, binary, style_file, limit, width)
         except (OSError, RuntimeError) as e:
@@ -1229,7 +1389,10 @@ def main(argv=None):
             failed = True
             continue
         if out != src and token_signature(out) != token_signature(src):
-            print(f"imtool_format: {path}: token sequence would change (clang-format or the post-pass altered a token); file left untouched", file=sys.stderr)
+            print(
+                f"imtool_format: {path}: token sequence would change (clang-format or the post-pass altered a token); file left untouched",
+                file=sys.stderr,
+            )
             failed = True
             continue
         if not a.no_brace_check:
@@ -1237,7 +1400,10 @@ def main(argv=None):
             level = "error" if a.check else "warning"
             for line, stmt in unbraced_bodies(src if a.check else out):
                 findings += 1
-                print(f"{path}:{line}: {level}: control statement without braces: {stmt}", file=sys.stderr)
+                print(
+                    f"{path}:{line}: {level}: control statement without braces: {stmt}",
+                    file=sys.stderr,
+                )
         if out == src:
             continue
         would_change.append(path)
@@ -1245,7 +1411,9 @@ def main(argv=None):
             print(path)
         else:
             tmp = path + ".imtool_tmp"
-            with open(tmp, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
+            with open(
+                tmp, "w", encoding="utf-8", errors="surrogateescape", newline=""
+            ) as f:
                 f.write(out)
             shutil.copymode(path, tmp)
             os.replace(tmp, path)

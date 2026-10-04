@@ -25,4 +25,8 @@ jobs:
       - name: Install the pinned clang-format
         run: pip install -r toolkit/tools/format/requirements.txt
       - name: Run the formatter's unit tests
+        # Without the pinned binary the tests that run clang-format skip. In CI that
+        # must fail the job, so the variable turns each skip into a test failure.
+        env:
+          IMTOOL_FORMAT_REQUIRE_BINARY: "1"
         run: python3 -m unittest discover -s toolkit/tools/format -p 'test_*.py' -v
