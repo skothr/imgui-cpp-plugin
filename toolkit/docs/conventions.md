@@ -11,15 +11,15 @@ The toolkit's structural ground rules. Anything in this doc takes precedence ove
 - Concepts: `CamelCase` (`Arithmetic`).
 - Member variables: `m_camelCase` (`m_nextId`, `m_nodes`). Public data members of plain value types keep bare names (`Vec2::x`, `Rect::p1`).
 - Macros: `IMTOOL_UPPER_SNAKE`. Avoid macros wherever a `constexpr`, concept, or template solves the same problem.
-- Files: `snake_case.hpp` / `snake_case.cpp`. Directory names match the sub-namespace they hold.
+- Files: `snake_case.hpp` / `snake_case.cpp`. Directories are named after subsystems (see File organization). A subsystem that has a sub-namespace uses the same name for both: `node/` holds `imtool::node`, `view/` holds `imtool::view`. The other directories hold code in the flat `imtool` namespace.
 
 ## Ownership and lifetime
 
 The first thing a contributor (human or AI) should know about any pointer-shaped member is which lifetime category it falls into.
 
-- `std::unique_ptr<T>` for **ownership**. One owner; the owner is responsible for destruction. Example: `Application` owns `std::unique_ptr<SettingGroup> settings`; `NodeGraph` owns `std::vector<std::unique_ptr<Node>>`.
+- `std::unique_ptr<T>` for **ownership**. One owner; the owner is responsible for destruction. Example: `Application` owns `std::unique_ptr<SettingGroup> m_settings`; `NodeGraph` owns `std::vector<std::unique_ptr<Node>>`.
 - `std::shared_ptr<const T>` for **immutable data flowing through connectors**. Multiple readers may hold the data; nobody mutates it. The `const` is load-bearing — it both prevents downstream mutation and enables safe cross-thread reads.
-- Raw `T*` only for **non-owning observers**. Examples: a selection set holding `Node*` pointers into the graph's owned vector; a hover-state field tracking the currently-hovered widget. The observer must outlive the observed; the owner guarantees that ordering.
+- Raw `T*` only for **non-owning observers**. Examples: a selection set holding `Node*` pointers into the graph's owned vector; a hover-state field tracking the currently-hovered widget. The observed object must outlive every observer that points at it; the owner guarantees that ordering.
 - Reference `T&` for required, **non-storable** parameters. If the function might store the reference for later use, prefer `T*` (signals that the parameter can be nullptr in some overloads or stored).
 - `std::weak_ptr<T>` only for **breaking cycles** in shared-ownership graphs. Should be rare in this toolkit; if it appears more than once or twice, the design has a problem.
 
@@ -102,7 +102,7 @@ Each toolkit header maps to a prior-art source. Modernization is at the surface 
 Some features carried forward from `03-astrolograph/inc/base/mainWindow.hpp` are universally useful but not universally needed. The toolkit's `Application` exposes them via `AppConfig` switches in the same snake-case style as the existing `imgui_docking` / `docking_shift` / `vsync` flags. Working naming (to be finalized when Epic G work starts):
 
 - `multi_project_mode = false` — when `true`, `Application` shows the project-tab UI and treats `loadProject` / `saveProject` / `newProject` / cross-project clipboard as live operations. When `false`, a single implicit project is the only context and the tab UI is hidden.
-- `update_thread_enabled = false` — when `true`, `Application` spawns a dedicated update thread (`std::thread mUpdateThread`) with mutex-guarded shared state. When `false`, update logic runs on the render thread.
+- `update_thread_enabled = false` — when `true`, `Application` spawns a dedicated update thread (`std::thread m_updateThread`) with mutex-guarded shared state. When `false`, update logic runs on the render thread.
 
 Default is "feature off, lower setup cost"; consumers opt in by flipping the flag in their `AppConfig` instance. Multi-project and update-thread are decoupled — either can be enabled independently.
 
@@ -126,7 +126,7 @@ Format with `toolkit/tools/format/imtool_format.py`. `imtool_format.py --check` 
   ```
 
 - Put `public:`, `protected:` and `private:` at the column of `class`.
-- Put `case` labels at the column of the switch brace.
+- Put `case` and `default` labels at the column of the switch brace. See Braces for the layout of a whole `switch`.
 - Keep at most 3 consecutive blank lines.
 
 ### Braces
@@ -143,10 +143,10 @@ Format with `toolkit/tools/format/imtool_format.py`. `imtool_format.py --check` 
   }
   ```
 
-- Put the braces of `if`, `else`, `for`, `while`, `do`, `switch`, `try` and `catch` on their own line, indented one level. Indent the body one level further.
+- Put the braces of `if`, `else`, `for`, `while`, `do`, `switch`, `try` and `catch` on their own line, indented one level. Indent the body one level further. A `switch` is the one exception for the body: see below.
 
   ```cpp
-  for(auto n : m_nodes)
+  for(auto &n : m_nodes)
     {
       n->step();
       n->draw();
@@ -176,21 +176,41 @@ Format with `toolkit/tools/format/imtool_format.py`. `imtool_format.py --check` 
     };
   ```
 
-- Indent a braced block after a `case` label one level from the label.
+  The column limit takes precedence. When indenting an `enum` would move one of its lines past 140 columns, the formatter leaves the whole `enum` with its braces at the column of `enum`. A line inside an `enum` that holds only a comment stays at the column it was written at.
+
+- In a `switch`, the brace is indented one level like any control brace. The `case` and `default` labels are at the column of that brace, not one level further. Statements under a label that do not fit on the label line are indented one level from the label. The braces of a block after a label are indented one level from the label, and its statements one level further.
+
+  ```cpp
+  switch(kind)
+    {
+    case Kind::Input: addInput(); break;
+    case Kind::Group:
+      {
+        int n = countChildren();
+        resize(n);
+        break;
+      }
+    default:
+      warn(kind);
+      reset();
+      break;
+    }
+  ```
+
 - Put `else` on its own line after the closing brace.
 - Close a `do` body with `} while(cond);` on the brace line.
 - Put the brace of a lambda body that does not fit on one line on its own line, at the column where the lambda starts or at the statement's indentation.
 
   ```cpp
   std::sort(v.begin(), v.end(),
-            [](const Aspect &a, const Aspect &b)
+            [&count](const Aspect &a, const Aspect &b)
             {
               count++;
               return a.orb < b.orb;
             });
   ```
 
-- Always put braces around the body of `if`, `else`, `for`, `while` and `do`. The formatter does not add them. It reports each unbraced body with file and line: as an error with `--check`, as a warning when it rewrites.
+- Always put braces around the body of `if`, `else`, `for`, `while` and `do`. The formatter does not add them. It reports each unbraced body with file and line: as an error with `--check`, as a warning when it rewrites. The exit status is 1 either way. An attribute such as `[[likely]]` may stand between the statement and its braces.
 
   ```cpp
   if(n) { n->step(); }   // not: if(n) n->step();
@@ -204,7 +224,7 @@ These rules apply to function bodies, including member functions defined in a cl
 
   ```cpp
   if(n) { n->setId(m_nextId++); }
-  for(auto n : m_nodes) { n->disconnectAll(); delete n; }
+  for(auto &n : m_nodes) { n->disconnectAll(); n->clearFlags(); }
   Rect& operator=(const Rect &o) { p1 = o.p1; p2 = o.p2; return *this; }
   ```
 
@@ -255,6 +275,7 @@ These rules apply to function bodies, including member functions defined in a cl
 
 - A declared variable, parameter or member takes the `*` or `&`: `Node *n`, `const T &x`.
 - A function's return type keeps the `*` or `&`: `Node* find(int id)`, `T& operator[](int i)`.
+- A variable initialized with parentheses is a declared variable: `Node *n(graph.find(id));`. The formatter tells it from a function declaration by what is inside the parentheses, so a declaration whose only parameters are unnamed class types (`Node *find(Key);`) is left as written. Name the parameter or bind it by hand.
 - With no name after it, the `*` or `&` attaches to the type: `std::vector<Node*>`, `(Node*)p`, `void f(int*, T&)`.
 
 ### Naming
@@ -269,19 +290,27 @@ These rules apply to function bodies, including member functions defined in a cl
 
 ## Kept by hand, not enforced
 
-The formatter does not produce these. It removes most of them where it re-flows a line. Put a block between `// clang-format off` and `// clang-format on` to keep its layout.
+The formatter does not produce these hand layouts. Each item says what a format run does to one that is already in the code. Put a block between `// clang-format off` and `// clang-format on` to keep its layout; neither clang-format nor the post-pass changes the lines in between.
 
-- Alignment of `=`, member names, declaration names and argument columns across neighbouring lines, including the extra space that lines up digits under a minus sign.
-- One-line function bodies lined up in a column across neighbouring functions.
-- Tables of braced initializers with aligned columns.
-- Aligned `case` bodies.
-- Trailing comments. A comment's column is left as written, so an aligned column survives until the code before it changes length.
-- Break points in long argument lists and expressions.
-- Several statements on one line outside braces: `ImGui::SameLine(); ImGui::Text(...)`.
-- A body on its own line, or an expanded block, where the one-line form would fit.
-- An initializer list started on a new line where the signature line would fit it.
-- Indentation of commented-out code.
-- Whitespace on blank lines. The formatter empties them.
+Removed by the formatter:
+
+- Alignment of `=`, member names, declaration names and argument columns across neighbouring lines, including the extra space that lines up digits under a minus sign. Removed: runs of spaces become one space.
+- One-line function bodies lined up in a column across neighbouring functions. Removed.
+- Tables of braced initializers with aligned columns. Removed, and a table that fits on one line is joined.
+- Aligned `case` bodies. Removed.
+- Break points in long argument lists and expressions. Removed: the formatter chooses the breaks.
+- Several statements on one line outside braces: `ImGui::SameLine(); ImGui::Text(...)`. Removed: each statement gets its own line.
+- A body on its own line, or an expanded block, where the one-line form would fit. Removed: the body is joined.
+- An initializer list started on a new line where the signature line would fit it. Removed: the list is joined to the signature.
+- Indentation of commented-out code. Removed: a comment line is indented like the code after it. A comment line inside an `enum` is the exception and stays at its column.
+- Whitespace on blank lines. Removed: the formatter empties them.
+
+Left as written:
+
+- Trailing comments. The spaces before a trailing comment are left as written, so an aligned column survives until the code before it changes length.
+- A comment line under a trailing comment, at that comment's column.
+- The second and later lines of a block comment.
+- The body of a macro.
 
 ## Corpus evidence
 
@@ -306,7 +335,8 @@ Counts are from a survey of 739 hand-formatted files (181,297 lines, 12 projects
 | `else` on its own line | 3192 of 3411 |
 | Expanded lambda body: brace on its own line | 69 of 77 |
 | Control statements with braces | 17,781 of 18,144 |
-| One-statement control body that fits: on the statement line | 82.1% of 9,252 bodies follow "one line if it fits, else next line, else expanded" |
+| One-statement control body that fits: on the statement line | 7410 of 8957 bodies whose one-line form is under 140 columns |
+| One-statement control body: laid out as "one line if it fits, else next line, else expanded" | 82.1% of 9,252 bodies |
 | Two-statement control body that fits: on the statement line | 1080 of 1646 |
 | Three-statement control body that fits: on the statement line | 142 of 308 (ruling) |
 | One-statement function body that fits: on the signature line | 1955 of 2266 at namespace scope; 2223 of 2346 in class bodies |
@@ -317,7 +347,7 @@ Counts are from a survey of 739 hand-formatted files (181,297 lines, 12 projects
 | Initializer list with leading commas | 0 of 624 |
 | Colon line of an initializer list indented one level | 449 of 518 |
 | `case` body on the label line | 2275 of 2541 |
-| Struct body closed on the declaration line | 592 of 982 |
+| Struct written on one line, any number of members | 592 of 982 structs |
 | `template<...>` on its own line | 1602 of 3478 (left as written) |
 | No space after a C-style cast | 2247 of 2318 |
 | Space after a comma | 57,933 of 67,160 |

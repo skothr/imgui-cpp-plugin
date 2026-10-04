@@ -9,32 +9,35 @@ Step 2 is a post-pass for the parts of the style clang-format cannot express:
   braces      enum braces are indented one level, like control-statement braces (the style file
               indents the braces of if / for / while / do / switch / try / catch, GNU layout);
               a wrapped lambda brace sits at the column clang-format started the lambda at,
-              not one level in; "} while(..);" closes a do body on one line
-  bodies      a function body or an if / else / for / while body of one to three statements
+              not one level in; "} while(..);" closes a do body on one line.  An enum stays
+              where clang-format put it when the shift would move a line past the column limit
+  bodies     a function body or an if / else / for / while body of one to three statements
               goes on the line of its signature or statement when the whole line fits;
               otherwise the braced body goes alone on the next line when that line fits;
               otherwise the block stays expanded.  A body with a comment, a preprocessor
               line, a nested block or a braceless control statement is never joined.
   pointers    no space before * and & that have no name after them: <T*>, (T*), f(int*, T&)
-              a function's return type binds left: T* f(), T& C::g(), T& operator[](int)
+              a function's return type binds left: T* f(), T& C::g(), T& operator[](int);
+              a variable initialized with parentheses is left alone: T *p(nullptr);
   operators   binary * / % are written without spaces: a*b + c/d
 
 Without --check the files are rewritten in place.  With --check nothing is written and the
-files that would change are printed.
+files that would change are printed.  A symbolic link is followed: the file it points to is
+rewritten and the link stays.
 
 Control statements whose body has no braces are reported on stderr with file and line: as
 errors with --check, as warnings otherwise.  The tool does not add the braces, because it never
 changes tokens.  --no-brace-check turns the report off.
 
 Exit status: 0 clean; 1 if --check found files to change, or any unbraced body was reported;
-2 if a file could not be formatted, the clang-format binary is missing, or its version is not
-the one pinned in the first line of the style file.
+2 if a file could not be read, formatted or written, the clang-format binary is missing, or its
+version is not the one pinned in the first line of the style file.
 
 clang-format is looked up in this order: --clang-format, $IMTOOL_CLANG_FORMAT, the binary
 installed by the pip package clang-format in the running Python environment, PATH.
 
 The post-pass changes whitespace and line breaks only.  It never touches preprocessor lines,
-the inside of string / character literals or line comments, or the lines between
+the inside of string / character literals or comments, or the lines between
 "// clang-format off" and "// clang-format on".  Before writing, the tool compares the token
 sequence of its output with the input and refuses to write on any difference.  It also refuses
 a file on which clang-format plus the post-pass does not reach a fixed point.
@@ -50,6 +53,7 @@ import shutil
 import subprocess
 import sys
 import sysconfig
+import tempfile
 
 # --------------------------------------------------------------------------- lexer
 
@@ -67,6 +71,7 @@ OPS = sorted(
     reverse=True,
 )  # fmt: skip
 CODE = ("id", "num", "op", "str", "chr")
+BOM = "﻿"  # a UTF-8 byte order mark, as Python decodes it
 
 
 def _line_comment_end(text, i):
@@ -88,11 +93,15 @@ def lex(text):
     """Split text into (kind, text) tokens whose concatenation equals text.
 
     kinds: ws nl lc (line comment) bc (block comment) pp (a whole preprocessor directive,
-    continuation lines included) str chr id num op
+    continuation lines included) str chr id num op bom (a byte order mark at the start)
     """
     toks = []
     i, n = 0, len(text)
     line_start = True
+    if text.startswith(BOM):
+        # its own kind, so that a directive after it still starts its line
+        toks.append(("bom", BOM))
+        i = 1
     while i < n:
         c = text[i]
         if c == "\n":
@@ -415,38 +424,66 @@ def _attribute_open(S, k):
 
 
 def _lambda_brace(S, i):
-    """True if sig[i] ('{') opens a lambda body: it follows '[captures](params)' or '[captures]'."""
+    """True if sig[i] ('{') opens a lambda body.
+
+    Walks back from the brace over what a lambda may have between its capture list and its
+    body: template parameters, parameters, specifiers, 'noexcept(...)', attributes, a trailing
+    return type, a requires clause.  The walk ends at the start of the statement.
+    """
     k = i - 1
-    while k >= 0:
-        if S.sig[k][2] == "id" and S.sig[k][3] in ("mutable", "noexcept", "constexpr"):
-            k -= 1
+    steps = 0
+    while k >= 0 and steps < 64:
+        steps += 1
+        kind, tok = S.sig[k][2], S.sig[k][3]
+        if kind == "op" and tok in (")", "]"):
+            o = S.match.get(k)
+            if o is None:
+                return False
+            # a '[[...]]' attribute is not a capture list: 'case 1: [[likely]] {'
+            if (
+                tok == "]"
+                and _attribute_open(S, k) is None
+                and _lambda_introducer(S, o, k, i)
+            ):
+                return True
+            k = o - 1
             continue
-        # a '[[...]]' attribute before the brace is not a capture list: 'case 1: [[likely]] {'
-        o = _attribute_open(S, k)
-        if o is None:
-            break
-        k = o - 1
-    if k < 0 or S.sig[k][2] != "op":
-        return False
-    if S.sig[k][3] == ")":
-        o = S.match.get(k)
-        if o is None or o == 0:
+        if kind == "op" and tok in (";", "{", "}", "(", "[", "="):
             return False
-        k = o - 1
-    if S.sig[k][3] != "]" or S.sig[k][2] != "op":
-        return False
-    o = S.match.get(k)
-    if o is None:
-        return False
-    if o == 0:
+        k -= 1
+    return False
+
+
+LAMBDA_SPECIFIERS = {
+    "mutable",
+    "constexpr",
+    "consteval",
+    "static",
+    "noexcept",
+    "requires",
+}
+
+
+def _lambda_introducer(S, o, c, i):
+    """True if the '[' ... ']' at sig[o] .. sig[c] is the capture list of the lambda whose body
+    opens at sig[i]."""
+    if o > 0:
+        before = S.sig[o - 1]
+        # '[' after a name, a literal, ')' or ']' is a subscript
+        if before[2] in ("num", "str", "chr") or (
+            before[2] == "id" and before[3] not in ("return", "co_return")
+        ):
+            return False
+        if before[2] == "op" and before[3] in (")", "]"):
+            return False
+    if c + 1 == i:
         return True
-    before = S.sig[o - 1]
-    # '[' after a name, ')' or ']' is a subscript, not a lambda introducer
-    if before[2] in ("num", "str", "chr") or (
-        before[2] == "id" and before[3] not in ("return", "co_return")
-    ):
-        return False
-    return not (before[2] == "op" and before[3] in (")", "]"))
+    kind, tok = S.sig[c + 1][2], S.sig[c + 1][3]
+    if kind == "id":
+        return tok in LAMBDA_SPECIFIERS
+    if kind == "op" and tok == "[":
+        return S.sig[c + 2][2:] == ("op", "[")  # an attribute
+    return kind == "op" and tok in ("(", "<", "->")
 
 
 def join_do_while(lines, S, limit):
@@ -485,8 +522,13 @@ def join_do_while(lines, S, limit):
     return [ln for x, ln in enumerate(lines) if x not in drop]
 
 
-def find_shift_blocks(lines, S, indent_width):
-    """Blocks whose brace lines and body move: [(open line, close line, delta)]."""
+def find_shift_blocks(lines, S, indent_width, limit=None):
+    """Blocks whose brace lines and body move: [(open line, close line, delta)].
+
+    An enum whose shift would move a line from inside `limit` columns to past it is left where
+    clang-format put it.  clang-format would not bring the line back, so the choice is between
+    an enum at the unindented column and a line past the limit; the limit wins.
+    """
     blocks = []
     for i, (li, _ci, kind, tok) in enumerate(S.sig):
         if kind != "op" or tok != "{" or i == 0:
@@ -511,32 +553,22 @@ def find_shift_blocks(lines, S, indent_width):
         head = _enum_head(S, i)
         if head is None or lines[head].protected:
             continue
-        if len(ln.indent) == len(lines[head].indent):
-            blocks.append((li, lj, indent_width))
+        if len(ln.indent) != len(lines[head].indent):
+            continue
+        if limit is not None and any(
+            w <= limit < w + indent_width
+            for w in (
+                _width(b) for b in lines[li : lj + 1] if b.code() and not b.protected
+            )
+        ):
+            continue  # the shift would put a line past the column limit: the enum stays
+        blocks.append((li, lj, indent_width))
     return blocks
 
 
-def _comment_room(tok):
-    """Smallest leading-space count over the non-blank continuation lines of a block comment."""
-    room = None
-    for cont in tok.split("\n")[1:]:
-        if cont.strip():
-            lead = len(cont) - len(cont.lstrip(" "))
-            room = lead if room is None else min(room, lead)
-    return room
-
-
-def _shift_comment(tok, delta):
-    parts = tok.split("\n")
-    out = [parts[0]]
-    for cont in parts[1:]:
-        if not cont.strip():
-            out.append(cont)
-        elif delta > 0:
-            out.append(" " * delta + cont)
-        else:
-            out.append(cont[-delta:])
-    return "\n".join(out)
+def _width(ln):
+    """Columns of the longest physical line of a Line."""
+    return max(len(seg.rstrip()) for seg in (ln.indent + ln.text()).split("\n"))
 
 
 def _pinned_comments(lines):
@@ -551,26 +583,35 @@ def _pinned_comments(lines):
     prev_trailing = False
     for x, ln in enumerate(lines):
         kinds = [k for k, _ in ln.toks if k != "ws"]
-        if kinds and all(k == "lc" for k in kinds):
+        if kinds and all(k in ("lc", "bc") for k in kinds):
             if prev_trailing:
+                if "bc" in kinds:
+                    # clang-format keeps a block comment after a trailing comment at its column
+                    pinned.add(x)
+                    continue
                 nxt = next((l for l in lines[x + 1 :] if l.code()), None)
                 if nxt is None or len(nxt.indent) != len(ln.indent):
                     pinned.add(x)
                     continue
             prev_trailing = False
         else:
-            prev_trailing = bool(ln.code()) and kinds[-1] == "lc"
+            prev_trailing = bool(ln.code()) and kinds[-1] in ("lc", "bc")
     return pinned
 
 
 def apply_shifts(lines, blocks):
     """Shift the lines of each block.  A block is dropped when a line in it cannot move (too
-    little indentation, or a block comment continuation line with too little indentation)."""
+    little indentation).
+
+    Only the indentation of a line changes.  The second and later lines of a block comment are
+    inside a token and stay as written: clang-format does not re-indent them either, so moving
+    them would move them again on every run.
+    """
     pinned = _pinned_comments(lines)
     comment_only = {
         x
         for x, ln in enumerate(lines)
-        if ln.toks and all(k in ("lc", "ws") for k, _ in ln.toks)
+        if ln.toks and all(k in ("lc", "bc", "ws") for k, _ in ln.toks)
     }
     while True:
         delta = [0] * len(lines)
@@ -588,13 +629,6 @@ def apply_shifts(lines, blocks):
             if len(ln.indent) < -d or "\t" in ln.indent:
                 bad = x
                 break
-            for kind, tok in ln.toks:
-                if kind == "bc" and "\n" in tok:
-                    room = _comment_room(tok)
-                    if room is not None and room < -d:
-                        bad = x
-            if bad is not None:
-                break
         if bad is None:
             break
         blocks = [bl for bl in blocks if not (bl[0] <= bad <= bl[1] and bl[2] < 0)]
@@ -603,13 +637,6 @@ def apply_shifts(lines, blocks):
         if d == 0 or ln.protected or ln.is_pp() or not ln.toks:
             continue
         ln.indent = " " * (len(ln.indent) + d)
-        if any(kind == "bc" and "\n" in tok for kind, tok in ln.toks):
-            ln.toks = [
-                (kind, _shift_comment(tok, d))
-                if kind == "bc" and "\n" in tok
-                else (kind, tok)
-                for kind, tok in ln.toks
-            ]
 
 
 # --------------------------------------------------------------------------- token spacing
@@ -643,9 +670,9 @@ def tight_unnamed_declarators(toks):
             while j < n and toks[j][0] == "op" and toks[j][1] in PTR:
                 j += 1
             nxt = toks[j] if j < n else None
-            prev_ok = (prev[0] == "id" and prev[1] not in NOT_A_TYPE) or prev == (
-                "op",
-                ">",
+            prev_ok = (prev[0] == "id" and prev[1] not in NOT_A_TYPE) or prev in (
+                ("op", ">"),
+                ("op", ">>"),
             )
             if (
                 nxt is not None
@@ -714,7 +741,10 @@ def bind_return_type_left(toks):
     if not seen_type or i < 2 or toks[i - 1][0] != "ws":
         return toks
     prev = toks[i - 2]
-    if not ((prev[0] == "id" and prev[1] not in NOT_A_TYPE) or prev == ("op", ">")):
+    if not (
+        (prev[0] == "id" and prev[1] not in NOT_A_TYPE)
+        or prev in (("op", ">"), ("op", ">>"))
+    ):
         return toks
     j = i
     while j < n and toks[j][0] == "op" and toks[j][1] in PTR:
@@ -751,7 +781,97 @@ def bind_return_type_left(toks):
             return toks
     elif k >= n or toks[k] != ("op", "(") or depth != 0:
         return toks
+    elif not any(t == ("op", "::") for t in toks[j:k]) and _initializer_list(toks, k):
+        return toks  # 'T *p(nullptr);' declares a variable
     return toks[: i - 1] + toks[i:j] + [toks[i - 1]] + toks[j:]
+
+
+BUILTIN_TYPES = {
+    "void", "bool", "char", "wchar_t", "char8_t", "char16_t", "char32_t", "short", "int", "long", "signed",
+    "unsigned", "float", "double", "auto",
+}  # fmt: skip
+
+
+def _initializer_list(toks, k):
+    """True if the '(' at toks[k] opens the initializer of a variable: 'T *p(nullptr);'.
+
+    'T *f(int n);' and 'T *p(n);' have the same shape, so the parenthesised part decides.  It is
+    a parameter list when it is empty, when something other than ';' or ',' follows the ')'
+    (a body, 'const', '= 0', the end of the line), or when it shows a declaration: two names in
+    a row ('int n', 'const T'), a built-in type, an unnamed '*' / '&' parameter, a '*' or '&'
+    bound to a name ('Node *n'), or '...'.  Anything else is an initializer.
+    """
+    n = len(toks)
+    depth = 0
+    close = None
+    inner = []  # tokens directly inside the parentheses, whitespace included
+    for x in range(k + 1, n):
+        kind, tok = toks[x]
+        if kind == "op" and tok in ("(", "[", "{"):
+            depth += 1
+        elif kind == "op" and tok in (")", "]", "}"):
+            if depth == 0:
+                close = x
+                break
+            depth -= 1
+        elif depth == 0:
+            inner.append((kind, tok))
+            continue
+        inner.append(("nested", tok))
+    if close is None:
+        after = None  # the list continues on the next line
+    else:
+        after = next(
+            (t for t in toks[close + 1 :] if t[0] not in ("ws", "lc", "bc")), None
+        )
+        if after is None or after not in (("op", ";"), ("op", ",")):
+            return False
+    if all(t[0] == "ws" for t in inner):
+        return False  # 'T *f();' declares a function
+    for x, (kind, tok) in enumerate(inner):
+        prev = inner[x - 1] if x > 0 else None
+        nxt = inner[x + 1] if x + 1 < len(inner) else None
+        if kind == "id" and tok in BUILTIN_TYPES:
+            return False
+        if kind == "op" and tok == "...":
+            return False
+        named = (
+            nxt is not None
+            and nxt[0] == "ws"
+            and x + 2 < len(inner)
+            and inner[x + 2][0] == "id"
+        )
+        if kind == "id" and tok not in NOT_A_TYPE and named:
+            return False  # two names in a row: 'int n', 'const T'
+        if (
+            kind == "op"
+            and tok in (">", ">>")
+            and named
+            and prev is not None
+            and prev[0] != "ws"
+        ):
+            return False  # 'std::vector<int> v'; a comparison has a space on both sides
+        if kind == "op" and tok in PTR:
+            typed = prev is not None and (
+                prev[0] == "id" or prev in (("op", ">"), ("op", ">>"))
+            )
+            spaced = (
+                prev is not None
+                and prev[0] == "ws"
+                and x >= 2
+                and (
+                    inner[x - 2][0] == "id"
+                    or inner[x - 2] in (("op", ">"), ("op", ">>"))
+                )
+                and inner[x - 2][1] not in NOT_A_TYPE
+            )
+            # 'T*,' and 'T*)' are unnamed parameters; 'T *n' and 'T &n' are named ones.  A
+            # binary operator has a space on both sides, or none on either
+            if typed and (nxt is None or nxt == ("op", ",")):
+                return False
+            if spaced and nxt is not None and nxt[0] == "id":
+                return False
+    return True
 
 
 def tight_muldiv(toks):
@@ -855,6 +975,13 @@ def _control_keyword(S, i):
         return i - 1
     if pkind == "op" and ptok == ")":
         o = S.match.get(i - 1)
+        if (
+            o is not None
+            and o > 1
+            and S.sig[o - 1][2:] in (("id", "constexpr"), ("id", "consteval"))
+            and S.sig[o - 2][2:] == ("id", "if")
+        ):
+            o -= 1  # 'if constexpr(..)'
         if (
             o is not None
             and o > 0
@@ -1032,23 +1159,41 @@ def _tok_index(ln, code_index):
 def _function_signature_end(S, i):
     """True if the '{' at sig[i] opens a function body: it follows ')' plus optional qualifiers,
     or a constructor initializer list, and the '(' is not that of a control statement or lambda."""
-    k = i - 1
-    quals = {"const", "noexcept", "override", "final", "volatile", "mutable"}
-    while k >= 0 and S.sig[k][2] == "id" and S.sig[k][3] in quals:
-        k -= 1
-    if k < 0 or S.sig[k][3] != ")":
+    # the ')' of the parameter list, or of the last constructor initializer; a trailing return
+    # type and a requires clause may stand between it and the brace
+    end = i - 1
+    k = _parameter_list_end(S, end)
+    for _ in range(2):
+        if k is not None:
+            break
+        tail = _signature_tail_start(S, end)
+        if tail == end:
+            break
+        end = tail
+        k = _parameter_list_end(S, end)
+    if k is None:
         return False
     o = S.match.get(k)
     if o is None or o == 0:
         return False
     before = S.sig[o - 1]
-    is_operator = any(S.sig[x][3] == "operator" for x in range(max(0, o - 3), o))
-    if not is_operator:
+    # 'operator' and the tokens of its name: 'operator new[]', 'operator const T*'
+    operator_at = None
+    for x in range(o - 1, max(-1, o - 13), -1):
+        if S.sig[x][2:] == ("id", "operator"):
+            operator_at = x
+            break
+        if S.sig[x][2] == "op" and S.sig[x][3] in (";", "{", "}"):
+            break
+    if operator_at is None:
         if before[2] != "id" or before[3] in ("if", "for", "while", "switch", "catch"):
             return False
-    # walk back to the start of the declaration: no '=' , 'return' or unbalanced bracket on the way
+    # walk back to the start of the declaration: no 'return', record head or unbalanced bracket
+    # on the way
     depth = 0
-    k = o - 1
+    angle = 0  # inside '<...>': 'template<class T>', 'std::vector<struct Foo*>'
+    colon = False
+    k = o - 1 if operator_at is None else operator_at - 1
     while k >= 0:
         kind, tok = S.sig[k][2], S.sig[k][3]
         if kind == "op":
@@ -1060,25 +1205,71 @@ def _function_signature_end(S, i):
                 depth -= 1
             elif depth == 0 and tok in (";", "{", "}"):
                 return True
-        elif (
-            kind == "id"
-            and depth == 0
-            and tok
-            in (
-                "return",
-                "new",
-                "throw",
-                "case",
-                "namespace",
-                "class",
-                "struct",
-                "union",
-                "enum",
-            )
-        ):
-            return False
+            elif depth == 0 and tok in (">", ">>"):
+                angle += len(tok)
+            elif depth == 0 and tok == "<":
+                angle = max(0, angle - 1)
+            elif depth == 0 and tok == ":":
+                colon = True
+        elif kind == "id" and depth == 0 and angle == 0:
+            if tok in ("return", "new", "throw", "case", "namespace"):
+                return False
+            # 'struct Foo* make()' has an elaborated return type; 'enum E : decltype(x)' and
+            # 'struct S : Base(y)' are the heads of an enum and a record
+            if tok in ("class", "struct", "union", "enum") and colon:
+                return False
         k -= 1
     return True
+
+
+FUNCTION_QUALIFIERS = {"const", "noexcept", "override", "final", "volatile", "mutable"}
+TAIL_OPS = {"::", "<", ">", ">>", ",", "*", "&", "&&", "||", "!", "...", "."}
+
+
+def _parameter_list_end(S, k):
+    """sig index of the ')' reached from sig[k] by walking back over what may follow a parameter
+    list: qualifiers, '&' / '&&', 'noexcept(...)' and attributes.  None if there is no ')'."""
+    while k >= 0:
+        kind, tok = S.sig[k][2], S.sig[k][3]
+        if (kind == "id" and tok in FUNCTION_QUALIFIERS) or (
+            kind == "op" and tok in ("&", "&&")
+        ):
+            k -= 1
+            continue
+        o = _attribute_open(S, k)
+        if o is not None:
+            k = o - 1
+            continue
+        if kind != "op" or tok != ")":
+            return None
+        o = S.match.get(k)
+        if o is not None and o > 0 and S.sig[o - 1][2:] == ("id", "noexcept"):
+            k = o - 2
+            continue
+        return k
+    return None
+
+
+def _signature_tail_start(S, k):
+    """sig index of the token before the '->' of a trailing return type or the 'requires' of a
+    requires clause that ends at sig[k]; k itself if there is none."""
+    j = k
+    steps = 0
+    while j > 0 and steps < 48:
+        steps += 1
+        kind, tok = S.sig[j][2], S.sig[j][3]
+        if (kind == "op" and tok == "->") or (kind == "id" and tok == "requires"):
+            return j - 1
+        if kind == "op" and tok in (")", "]"):
+            o = S.match.get(j)
+            if o is None:
+                return k
+            j = o - 1
+        elif kind in ("id", "num") or (kind == "op" and tok in TAIL_OPS):
+            j -= 1
+        else:
+            return k
+    return k
 
 
 # --------------------------------------------------------------------------- post-pass
@@ -1097,11 +1288,17 @@ def post_pass(
         if features is not None
         else {"braces", "pointers", "operators", "bodies"}
     )
+    if text.startswith(BOM):
+        # the mark is not part of the first line's indentation or tokens
+        rest = post_pass(
+            text[1:], limit, max_statements, indent_width, tight_ops, features
+        )
+        return BOM + rest
     lines = split_lines(text)
     mark_protected(lines)
     if "braces" in on:
         S = Structure(lines)
-        apply_shifts(lines, find_shift_blocks(lines, S, indent_width))
+        apply_shifts(lines, find_shift_blocks(lines, S, indent_width, limit))
         lines = join_do_while(lines, S, limit)
     for ln in lines:
         if ln.protected or ln.is_pp() or not ln.toks:
@@ -1298,7 +1495,13 @@ def format_text(text, binary, style_file, limit=140, indent_width=2, max_rounds=
     semicolons, each followed by a comment, is re-split a little further on every run); for
     those NoFixedPoint is raised and the caller leaves the file untouched, so that every file
     the tool does write is stable under a second run.
+
+    A byte order mark at the start is kept and is not passed to clang-format.
     """
+    if text.startswith(BOM):
+        return BOM + format_text(
+            text[1:], binary, style_file, limit, indent_width, max_rounds
+        )
     out = post_pass(
         run_clang_format(binary, style_file, text),
         limit=limit,
@@ -1317,6 +1520,34 @@ def format_text(text, binary, style_file, limit=140, indent_width=2, max_rounds=
         f"clang-format does not reach a fixed point after {max_rounds + 1} rounds; file left untouched "
         "(put the region that keeps changing between '// clang-format off' and '// clang-format on')"
     )
+
+
+def write_file(path, text):
+    """Replace the content of the file at path with text.
+
+    The text goes to a new temporary file in the directory of the file, which then replaces the
+    file, so a failed write leaves the file as it was.  A symbolic link is followed: the file it
+    points to is replaced and the link stays.  The file keeps its permission bits.
+    """
+    target = os.path.realpath(path)
+    fd, tmp = tempfile.mkstemp(
+        prefix=os.path.basename(target) + ".",
+        suffix=".imtool_tmp",
+        dir=os.path.dirname(target),
+    )
+    try:
+        with os.fdopen(
+            fd, "w", encoding="utf-8", errors="surrogateescape", newline=""
+        ) as f:
+            f.write(text)
+        shutil.copymode(target, tmp)
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def main(argv=None):
@@ -1395,6 +1626,13 @@ def main(argv=None):
             )
             failed = True
             continue
+        if out != src and not a.check:
+            try:
+                write_file(path, out)
+            except OSError as e:
+                print(f"imtool_format: {path}: {e}", file=sys.stderr)
+                failed = True
+                continue
         if not a.no_brace_check:
             # line numbers refer to the file as it is on disk when the command returns
             level = "error" if a.check else "warning"
@@ -1409,14 +1647,6 @@ def main(argv=None):
         would_change.append(path)
         if a.check:
             print(path)
-        else:
-            tmp = path + ".imtool_tmp"
-            with open(
-                tmp, "w", encoding="utf-8", errors="surrogateescape", newline=""
-            ) as f:
-                f.write(out)
-            shutil.copymode(path, tmp)
-            os.replace(tmp, path)
     if failed:
         return 2
     if findings or (a.check and would_change):

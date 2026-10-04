@@ -11,7 +11,9 @@ version pinned in the first line of imtool.clang-format.  With IMTOOL_FORMAT_REQ
 in the environment (set in CI) they fail instead of skipping.
 """
 
+import contextlib
 import functools
+import io
 import os
 import re
 import shutil
@@ -396,6 +398,38 @@ class BraceTests(Base):
         want = "void f()\n{\n  auto m = [](int q) [[gnu::cold]]\n  {\n    a();\n    return q;\n  };\n}\n"
         self.assertEqual(self.post(src), want)
 
+    def lambda_moves_out(self, head):
+        src = f"void f()\n{{\n  {head}\n    {{\n      foo();\n      return x + 1;\n    }};\n}}\n"
+        want = (
+            f"void f()\n{{\n  {head}\n  {{\n    foo();\n    return x + 1;\n  }};\n}}\n"
+        )
+        self.assertEqual(self.post(src), want, head)
+
+    def test_lambda_with_specifiers_and_a_return_type(self):
+        self.lambda_moves_out("auto a = [&](int x) -> int")
+        self.lambda_moves_out("auto a = [&](int x) -> std::vector<std::pair<int, T*>>")
+        self.lambda_moves_out("auto a = [&](int x) -> decltype(x + 1)")
+        self.lambda_moves_out("auto a = [&](int x) noexcept(true)")
+        self.lambda_moves_out("auto a = [&](int x) noexcept(noexcept(g(x))) -> int")
+        self.lambda_moves_out("auto a = [&](int x) static")
+        self.lambda_moves_out("auto a = [&](int x) consteval")
+        self.lambda_moves_out(
+            "auto a = [&](int x) mutable noexcept -> std::vector<int>"
+        )
+        self.lambda_moves_out("auto a = [&]<typename T>(T x) requires C<T>")
+        self.lambda_moves_out(
+            "auto a = [&]<typename T>(T x)\n    requires C<T> && D<T>"
+        )
+        self.lambda_moves_out("auto a = [] [[nodiscard]] (int x)")
+        self.lambda_moves_out("auto a = [x] mutable")
+        self.lambda_moves_out("return [&](int x) -> int")
+
+    def test_function_with_a_subscript_and_a_return_type_is_not_a_lambda(self):
+        self.unchanged(
+            "struct S\n{\n  auto operator[](int i) -> T&\n  {\n    check(i); // why\n    return m_d[i];\n  }\n"
+            "  auto f(int a[3]) -> int\n  {\n    check(a); // why\n    return a[0];\n  }\n};\n"
+        )
+
     def test_do_while_tail_is_joined(self):
         src = "void f()\n{\n  do\n    {\n      x++;\n      y--;\n    }\n  while(x < 3);\n}\n"
         out = self.post(src)
@@ -413,13 +447,32 @@ class BraceTests(Base):
             + "      /* first\n         second */\n      g();\n"
             + LAMBDA_TAIL
         )
+        # only the line's indentation moves; the later lines of the comment are inside the
+        # token and stay as written, as they do under clang-format
         self.assertIn(
-            "  {\n    /* first\n       second */\n    g();\n  });\n", self.post(src)
+            "  {\n    /* first\n         second */\n    g();\n  });\n", self.post(src)
         )
 
-    def test_block_comment_without_room_blocks_the_shift(self):
+    def test_block_comment_at_column_zero_does_not_block_the_shift(self):
         src = LAMBDA_HEAD + "      /* first\nsecond */\n      g();\n" + LAMBDA_TAIL
-        self.unchanged(src)
+        self.assertIn("  {\n    /* first\nsecond */\n    g();\n  });\n", self.post(src))
+
+    def test_block_comment_after_a_trailing_comment_keeps_its_column(self):
+        src = (
+            LAMBDA_HEAD
+            + "      g(); // one\n      /* two */\n      h(); /* three */\n      /* four */\n      k();\n"
+            + LAMBDA_TAIL
+        )
+        self.assertIn(
+            "    g(); // one\n      /* two */\n    h(); /* three */\n      /* four */\n    k();\n",
+            self.post(src),
+        )
+
+    def test_block_comment_line_in_enum_keeps_its_column(self):
+        src = "enum E\n{\n  A, // first\n  /* block */\n  B,\n  /* multi\n     line */\n  C,\n};\n"
+        want = "enum E\n  {\n    A, // first\n  /* block */\n    B,\n  /* multi\n     line */\n    C,\n  };\n"
+        self.assertEqual(self.post(src), want)
+        self.assertEqual(self.post(want), want)
 
 
 class ShiftStabilityTests(Base):
@@ -429,6 +482,24 @@ class ShiftStabilityTests(Base):
         src = "enum E\n{\n  A, // first\n\n          // group\n  B, // second\n  // plain\n  C,\n};\n"
         want = "enum E\n  {\n    A, // first\n\n          // group\n    B, // second\n  // plain\n    C,\n  };\n"
         self.assertEqual(self.post(src), want)
+
+    def test_enum_is_not_shifted_when_a_line_would_pass_the_limit(self):
+        def enum(name):
+            return f"enum E\n{{\n  {name} = 0,\n  B,\n}};\n"
+
+        fits = "A" * (LIMIT - WIDTH - len("   = 0,"))
+        self.assertEqual(len(f"  {fits} = 0,") + WIDTH, LIMIT)
+        out = self.post(enum(fits), limit=LIMIT, indent_width=WIDTH)
+        self.assertEqual(out, f"enum E\n  {{\n    {fits} = 0,\n    B,\n  }};\n")
+        self.assertEqual(max(len(x) for x in out.split("\n")), LIMIT)
+        # one column more: the shift would put the line past the limit, so the enum stays
+        self.unchanged(enum(fits + "A"), limit=LIMIT, indent_width=WIDTH)
+        # a line that is already past the limit does not block the shift
+        long = "A" * LIMIT
+        self.assertEqual(
+            self.post(enum(long), limit=LIMIT, indent_width=WIDTH),
+            f"enum E\n  {{\n    {long} = 0,\n    B,\n  }};\n",
+        )
 
     def test_continuation_of_a_trailing_comment_keeps_its_column(self):
         src = (
@@ -547,15 +618,27 @@ class BodyTests(Base):
         self.assertEqual(self.post(src), want)
 
     def test_line_of_exactly_the_limit_is_joined_and_one_more_is_not(self):
+        # the limit the tool passes: ColumnLimit of the style file
         base = len("  if(a) { g(); ") + len(" }")
-        fits = "x" * (140 - base - 3) + "();"
+        fits = "x" * (LIMIT - base - 3) + "();"
+        joined = "  if(a) { g(); " + fits + " }"
+        self.assertEqual(len(joined), LIMIT)
         self.assertEqual(
-            self.post(control("if(a)", ["g();", fits])),
-            "void f()\n{\n  if(a) { g(); " + fits + " }\n}\n",
+            self.post(control("if(a)", ["g();", fits]), limit=LIMIT),
+            "void f()\n{\n" + joined + "\n}\n",
         )
         over = "x" + fits
-        out = self.post(control("if(a)", ["g();", over]))
+        out = self.post(control("if(a)", ["g();", over]), limit=LIMIT)
         self.assertEqual(out, "void f()\n{\n  if(a)\n    { g(); " + over + " }\n}\n")
+
+    def test_limit_argument_moves_the_boundary(self):
+        src = control("if(a)", ["g();"])
+        joined = "  if(a) { g(); }"
+        self.assertIn(joined + "\n", self.post(src, limit=len(joined)))
+        self.assertEqual(
+            self.post(src, limit=len(joined) - 1),
+            "void f()\n{\n  if(a)\n    { g(); }\n}\n",
+        )
 
     def test_body_alone_on_the_next_line_when_the_statement_line_is_too_long(self):
         one = control(
@@ -580,15 +663,15 @@ class BodyTests(Base):
             + ", ".join(["argumentNumber%d" % i for i in range(9)])
             + ");"
         )
-        self.assertGreater(len("    { " + body + " }"), 140)
-        self.unchanged(control(self.LONG, [body]))
+        self.assertGreater(len("    { " + body + " }"), LIMIT)
+        self.unchanged(control(self.LONG, [body]), limit=LIMIT)
         half = (
             "doSomething("
             + ", ".join(["argumentNumber%d" % i for i in range(4)])
             + ");"
         )
-        self.assertGreater(len("    { " + half + " " + half + " }"), 140)
-        self.unchanged(control("if(a)", [half, half]))
+        self.assertGreater(len("    { " + half + " " + half + " }"), LIMIT)
+        self.unchanged(control("if(a)", [half, half]), limit=LIMIT)
 
     def test_statement_spanning_lines_gets_the_body_on_the_next_line(self):
         src = "void f()\n{\n  if(aaaaaaaaaa &&\n     bbbbbbbbbb)\n    {\n      g();\n      h();\n    }\n}\n"
@@ -681,6 +764,62 @@ class BodyTests(Base):
             "class C\n{\npublic:\n  int get() const { check(); return m_a; }\n};\n",
         )
 
+    def joins(self, head, indent=""):
+        src = f"{indent}{head}\n{indent}{{\n{indent}  check();\n{indent}  return n;\n{indent}}}\n"
+        self.assertEqual(
+            self.post(src), f"{indent}{head} {{ check(); return n; }}\n", head
+        )
+
+    def test_function_declared_with_template_class_or_an_elaborated_type(self):
+        src = "template<class T>\nT get()\n{\n  check();\n  return T();\n}\n"
+        self.assertEqual(
+            self.post(src), "template<class T>\nT get() { check(); return T(); }\n"
+        )
+        self.joins("template<class T, typename U>\nT get()")
+        self.joins("struct Foo* make()")
+        self.joins("static enum E pick(int a)")
+        self.joins("std::vector<struct Foo*> all()")
+
+    def test_operator_functions_with_long_names(self):
+        self.joins("void* operator new(std::size_t n)")
+        self.joins("void* operator new[](std::size_t n)")
+        self.joins("void operator delete[](void *p)")
+        self.joins("operator const T*() const", "  ")
+        self.joins("operator unsigned long long() const", "  ")
+        self.joins("operator std::vector<int>() const", "  ")
+        self.joins("bool operator<(const A &o) const", "  ")
+        self.joins("bool operator>>(const A &o) const", "  ")
+        self.joins("int operator()(int a) const", "  ")
+
+    def test_function_with_a_trailing_return_type_or_other_tail(self):
+        self.joins("auto size() const -> std::size_t", "  ")
+        self.joins("auto get() -> std::map<int, std::vector<T>>&", "  ")
+        self.joins("auto next() noexcept -> decltype(m_it + 1)", "  ")
+        self.joins("int& get() &", "  ")
+        self.joins("int&& take() &&", "  ")
+        self.joins("int get() const noexcept(true)", "  ")
+        self.joins("void h() [[gnu::cold]]")
+        self.joins("template<typename T>\nrequires C<T> T get()")
+        src = "  int f()\n    requires C<T>\n  {\n    check();\n    return n;\n  }\n"
+        self.assertEqual(
+            self.post(src), "  int f()\n    requires C<T>\n  { check(); return n; }\n"
+        )
+
+    def test_if_constexpr_body_is_joined(self):
+        self.assertEqual(
+            self.post(control("if constexpr(sizeof(T) == 4)", ["g();", "h();"])),
+            "void f()\n{\n  if constexpr(sizeof(T) == 4) { g(); h(); }\n}\n",
+        )
+        src = "void f()\n{\n  if constexpr(a) { g(); }\n  else if constexpr(b)\n    {\n      h();\n      k();\n    }\n}\n"
+        self.assertEqual(
+            self.post(src),
+            "void f()\n{\n  if constexpr(a) { g(); }\n  else if constexpr(b) { h(); k(); }\n}\n",
+        )
+
+    def test_enum_and_record_heads_ending_in_a_parenthesis_are_not_functions(self):
+        self.unchanged("  enum class E : decltype(x)\n    {\n      A,\n    };\n")
+        self.unchanged("struct S : Base<decltype(x)>, Other(y)\n{\n  int a;\n};\n")
+
     def test_records_namespaces_and_initializers_are_not_functions(self):
         self.unchanged("struct S\n{\n  int a;\n};\nnamespace n\n{\n  int a;\n}\n")
         self.unchanged("static const int table[] =\n{\n  1,\n};\n")
@@ -753,6 +892,66 @@ class SpacingTests(Base):
             self.line("[[nodiscard]] static const Vec2f &center();"),
             "[[nodiscard]] static const Vec2f& center();",
         )
+
+    def test_pointer_after_nested_template_arguments(self):
+        self.assertEqual(
+            self.line("std::map<K, std::vector<V>> &get();"),
+            "std::map<K, std::vector<V>>& get();",
+        )
+        self.assertEqual(
+            self.line("auto p = (std::vector<std::vector<int>> *)q;"),
+            "auto p = (std::vector<std::vector<int>>*)q;",
+        )
+        self.assertEqual(
+            self.line("void h(std::vector<std::vector<int>> &, int);"),
+            "void h(std::vector<std::vector<int>>&, int);",
+        )
+        self.unchanged("  x = a >> *p;\n  y = (b >> *q);\n")
+
+    def test_direct_initialised_variable_keeps_binding_right(self):
+        for decl in (
+            "Foo &ref(other);",
+            "T *p(nullptr);",
+            "auto &x(y);",
+            "T *p(a, b);",
+            "Node *n(graph.find(id));",
+            "const T &r(*it);",
+            "T *p(0), *q(0);",
+            "Foo *f(new Foo);",
+            "std::string &s(m_names[key]);",
+            "T *p(static_cast<T *>(q));",
+            "float *v(a * b);",
+            "bool &b(a > c);",
+            "bool &b(a >> c);",
+        ):
+            want = decl.replace("<T *>", "<T*>").replace("a * b", "a*b")
+            self.assertEqual(self.line("  " + decl), "  " + want)
+
+    def test_function_declaration_is_told_from_a_variable_by_its_parameters(self):
+        for decl, want in (
+            ("T *make(int n);", "T* make(int n);"),
+            ("Node *find();", "Node* find();"),
+            ("Node *find(int);", "Node* find(int);"),
+            ("Node *find(const Key &);", "Node* find(const Key&);"),
+            ("Node *find(Key *, int);", "Node* find(Key*, int);"),
+            ("Node *find(Key k, Graph &g);", "Node* find(Key k, Graph &g);"),
+            ("Node *find(std::vector<int> &v);", "Node* find(std::vector<int> &v);"),
+            ("Node *find(Args...);", "Node* find(Args...);"),
+            (
+                "Node *add(std::unique_ptr<Node> node);",
+                "Node* add(std::unique_ptr<Node> node);",
+            ),
+            (
+                "Node *add(std::map<int, std::vector<T>> m);",
+                "Node* add(std::map<int, std::vector<T>> m);",
+            ),
+            ("Node *find(id) const;", "Node* find(id) const;"),
+            ("Node *find(id) { return m[id]; }", "Node* find(id) { return m[id]; }"),
+            ("Node *Graph::find(id);", "Node* Graph::find(id);"),
+            ("Node *find(id)", "Node* find(id)"),
+            ("Node *find(int id,", "Node* find(int id,"),
+        ):
+            self.assertEqual(self.line(decl), want)
 
     def test_return_type_padding_is_kept_as_width(self):
         self.assertEqual(
@@ -882,6 +1081,25 @@ class ImmunityTests(Base):
             "      // clang-format off\n      x  =  a * b;\n      // clang-format on\n    g();\n",
             out,
         )
+
+    def test_byte_order_mark_before_the_first_directive(self):
+        bom = "﻿"
+        self.assertEqual(
+            [(k, t) for k, t in I.lex(bom + "#define AREA w * h\n")][:2],
+            [("bom", bom), ("pp", "#define AREA w * h")],
+        )
+        self.unchanged(bom + "#define AREA w * h\nint x = a*b;\n")
+        self.assertEqual(self.post(bom + "int x = a * b;\n"), bom + "int x = a*b;\n")
+        self.unchanged(bom + "enum E\n  {\n    A,\n  };\n")
+        self.assertEqual(
+            self.post(bom + "enum E\n{\n  A,\n};\n"),
+            bom + "enum E\n  {\n    A,\n  };\n",
+        )
+        # a mark that is removed or added counts as a token change
+        self.assertNotEqual(
+            I.token_signature(bom + "int x;"), I.token_signature("int x;")
+        )
+        self.assertEqual(I.unbraced_bodies(bom + "#define M(x) if(x) g()\n"), [])
 
     def test_crlf_line_endings_are_kept(self):
         src = "void f()\r\n{\r\n  if(a)\r\n    {\r\n      g();\r\n    }\r\n  h();\r\n  k();\r\n  m();\r\n  n();\r\n}\r\n"
@@ -1050,7 +1268,12 @@ class LookupTests(unittest.TestCase):
         self.assertIsNotNone(PINNED)
         self.assertRegex(str(PINNED), r"^\d+\.\d+\.\d+$")
         with open(os.path.join(HERE, "requirements.txt")) as f:
-            self.assertEqual(f.read().strip(), f"clang-format=={PINNED}")
+            lines = [x.strip() for x in f if x.strip() and not x.startswith("#")]
+        # one requirement, pinned to the same version, every continuation line a sha256 hash
+        self.assertEqual(lines[0].rstrip("\\").strip(), f"clang-format=={PINNED}")
+        self.assertGreater(len(lines), 1)
+        for line in lines[1:]:
+            self.assertRegex(line, r"^--hash=sha256:[0-9a-f]{64}( \\)?$")
 
     def test_binary_version_of_a_fake_binary(self):
         self.assertEqual(I.binary_version(fake_binary(self.dir, "1.2.3")), "1.2.3")
@@ -1101,6 +1324,176 @@ class LookupTests(unittest.TestCase):
         )
         self.assertEqual(p.returncode, 2)
         self.assertIn("style file not found", p.stderr)
+
+
+class RefusalTests(unittest.TestCase):
+    """main() with a stand-in for clang-format: what is written, printed and returned.
+
+    The binary is a script that reports the pinned version; run_clang_format is replaced, so
+    these tests need no clang-format.
+    """
+
+    SRC = "int   x;\n"
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.binary = fake_binary(self.dir, PINNED)
+        self.path = os.path.join(self.dir, "a.cpp")
+        with open(self.path, "w") as f:
+            f.write(self.SRC)
+        orig = I.run_clang_format
+        self.addCleanup(setattr, I, "run_clang_format", orig)
+
+    def main(self, fake, *args):
+        I.run_clang_format = fake
+        err, out = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+            status = I.main(["--clang-format", self.binary, *args])
+        return status, out.getvalue(), err.getvalue()
+
+    def read(self, path):
+        with open(path, newline="") as f:
+            return f.read()
+
+    @staticmethod
+    def collapse(binary, style, text):
+        return re.sub(r" +", " ", text)
+
+    def test_whitespace_change_is_written(self):
+        status, _out, err = self.main(self.collapse, self.path)
+        self.assertEqual((status, err), (0, ""))
+        self.assertEqual(self.read(self.path), "int x;\n")
+        self.assertEqual(sorted(os.listdir(self.dir)), ["a.cpp", "clang-format"])
+
+    def test_token_change_leaves_the_file_untouched(self):
+        def renames(binary, style, text):
+            return text.replace("x", "y")
+
+        for args in ((self.path,), ("--check", self.path)):
+            status, out, err = self.main(renames, *args)
+            self.assertEqual((status, out), (2, ""))
+            self.assertIn(f"{self.path}: token sequence would change", err)
+            self.assertIn("file left untouched", err)
+            self.assertEqual(self.read(self.path), self.SRC)
+
+    def test_merged_words_leave_the_file_untouched(self):
+        def merges(binary, style, text):
+            return text.replace("int   x", "intx")
+
+        status, _out, err = self.main(merges, self.path)
+        self.assertEqual(status, 2)
+        self.assertIn("token sequence would change", err)
+        self.assertEqual(self.read(self.path), self.SRC)
+
+    def test_no_fixed_point_leaves_the_file_untouched(self):
+        def growing(binary, style, text):
+            return text + "\n"
+
+        for args in ((self.path,), ("--check", self.path)):
+            status, out, err = self.main(growing, *args)
+            self.assertEqual((status, out), (2, ""))
+            self.assertIn(
+                f"{self.path}: clang-format does not reach a fixed point", err
+            )
+            self.assertEqual(self.read(self.path), self.SRC)
+
+    def test_clang_format_failure_leaves_the_file_untouched(self):
+        def fails(binary, style, text):
+            raise RuntimeError("clang-format failed: boom")
+
+        status, _out, err = self.main(fails, self.path)
+        self.assertEqual(status, 2)
+        self.assertIn("boom", err)
+        self.assertEqual(self.read(self.path), self.SRC)
+
+    def test_a_refused_file_does_not_stop_the_others(self):
+        other = os.path.join(self.dir, "b.cpp")
+        with open(other, "w") as f:
+            f.write("int   keep;\n")
+
+        def renames_x(binary, style, text):
+            return re.sub(r" +", " ", text).replace("x", "y")
+
+        status, _out, err = self.main(renames_x, self.path, other)
+        self.assertEqual(status, 2)
+        self.assertEqual(self.read(self.path), self.SRC)
+        self.assertEqual(self.read(other), "int keep;\n")
+
+    def test_wrong_version_leaves_every_file_untouched(self):
+        self.binary = fake_binary(self.dir, "1.2.3", name="other-clang-format")
+        status, _out, err = self.main(self.collapse, self.path)
+        self.assertEqual(status, 2)
+        self.assertIn(f"pinned to {PINNED}", err)
+        self.assertEqual(self.read(self.path), self.SRC)
+
+    def test_symbolic_link_is_written_through_to_its_target(self):
+        real_dir = os.path.join(self.dir, "real")
+        os.mkdir(real_dir)
+        target = os.path.join(real_dir, "t.cpp")
+        with open(target, "w") as f:
+            f.write(self.SRC)
+        os.chmod(target, 0o640)
+        link = os.path.join(self.dir, "link.cpp")
+        try:
+            os.symlink(os.path.join("real", "t.cpp"), link)
+        except (OSError, NotImplementedError):
+            self.skipTest("symbolic links are not available")
+        status, _out, err = self.main(self.collapse, link)
+        self.assertEqual((status, err), (0, ""))
+        self.assertTrue(os.path.islink(link))
+        self.assertEqual(os.readlink(link), os.path.join("real", "t.cpp"))
+        self.assertEqual(self.read(target), "int x;\n")
+        self.assertEqual(stat.S_IMODE(os.stat(target).st_mode), 0o640)
+        self.assertEqual(os.listdir(real_dir), ["t.cpp"])
+
+    def test_file_named_like_the_old_temporary_file_is_not_overwritten(self):
+        bystander = self.path + ".imtool_tmp"
+        with open(bystander, "w") as f:
+            f.write("keep me\n")
+        status, _out, _err = self.main(self.collapse, self.path)
+        self.assertEqual(status, 0)
+        self.assertEqual(self.read(bystander), "keep me\n")
+        self.assertEqual(self.read(self.path), "int x;\n")
+
+    @unittest.skipIf(
+        os.name != "posix" or os.geteuid() == 0,
+        "needs a directory the user cannot write to",
+    )
+    def test_write_failure_is_reported_and_the_other_files_are_still_formatted(self):
+        locked = os.path.join(self.dir, "locked")
+        os.mkdir(locked)
+        first = os.path.join(locked, "first.cpp")
+        with open(first, "w") as f:
+            f.write(self.SRC)
+        os.chmod(locked, 0o555)
+        self.addCleanup(os.chmod, locked, 0o755)
+        status, _out, err = self.main(self.collapse, first, self.path)
+        self.assertEqual(status, 2)
+        self.assertIn(f"imtool_format: {first}: ", err)
+        self.assertNotIn("Traceback", err)
+        self.assertEqual(self.read(first), self.SRC)
+        self.assertEqual(os.listdir(locked), ["first.cpp"])
+        self.assertEqual(self.read(self.path), "int x;\n")
+
+    def test_missing_file_is_reported_with_status_2(self):
+        status, _out, err = self.main(self.collapse, os.path.join(self.dir, "none.cpp"))
+        self.assertEqual(status, 2)
+        self.assertIn("none.cpp", err)
+
+    def test_byte_order_mark_and_line_endings_are_written_back(self):
+        with open(self.path, "w", newline="", encoding="utf-8") as f:
+            f.write("﻿#define AREA w * h\r\nint   x;\r\n")
+        seen = []
+
+        def collapse(binary, style, text):
+            seen.append(text)
+            return re.sub(r" +", " ", text)
+
+        status, _out, err = self.main(collapse, self.path)
+        self.assertEqual((status, err), (0, ""))
+        with open(self.path, newline="", encoding="utf-8") as f:
+            self.assertEqual(f.read(), "﻿#define AREA w * h\r\nint x;\r\n")
 
 
 class RequireBinaryTests(unittest.TestCase):
@@ -1255,6 +1648,86 @@ class PropertyTests(Base):
         self.assertIn("  if(x) [[likely]]\n    {\n", out)
         self.assertEqual(I.unbraced_bodies(out), [])
 
+    COMMENTS = d("""
+        enum E {
+          A, // a
+          /* block */
+          B,
+            /* multi
+               line */
+          C, /* trailing block */
+          /* after trailing block */
+          D,
+        };
+        void f() {
+          run([&](int a) {
+              /* first
+                 second */
+              g(); // trailing
+              /* after a trailing line comment */
+              h(); /* trailing block */
+                   // aligned
+              k(); m();
+            });
+        }
+        """)
+
+    @needs_binary
+    def test_block_comments_in_shifted_blocks_converge_and_keep_their_text(self):
+        out = I.format_text(self.COMMENTS, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertEqual(I.format_text(out, BINARY, STYLE, LIMIT, WIDTH), out)
+        self.assertEqual(I.token_signature(self.COMMENTS), I.token_signature(out))
+        # the later lines of a block comment are byte-identical
+        self.assertIn("/* multi\n       line */\n", out)
+        self.assertIn("/* first\n         second */\n", out)
+        self.assertIn("enum E\n  {\n    A, // a\n", out)
+        self.assertIn("    [&](int a)\n    {\n      /* first\n", out)
+
+    @needs_binary
+    def test_header_and_other_extensions_are_formatted_as_cpp(self):
+        # clang-format alone takes this for Objective-C and finds no section for it in the
+        # style file; the tool always formats as C++
+        objc = "@interface Foo : NSObject\n@end\nvoid f(int*p){if(p){g();}}\n"
+        out = I.format_text(objc, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertIn("void f(int *p)\n{\n  if(p) { g(); }\n}\n", out)
+
+    @needs_binary
+    def test_macro_bodies_and_directives_are_left_as_written(self):
+        macro = "#define BLOCK(x)   \\\n   if (x) {    \\\n      g( x );  \\\n    }\n"
+        src = macro + "#define   SQ(x)    ((x)   *  (x))\nint   y;\n"
+        out = I.format_text(src, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertEqual(out, macro + "#define SQ(x)    ((x)   *  (x))\nint y;\n")
+
+    @needs_binary
+    def test_clang_format_off_region_survives_the_whole_tool(self):
+        region = "// clang-format off\nenum   Keep\n{\n  A  =  a * b,\n};\nstd::vector<T *> v;\nif (a)  g( );\n// clang-format on\n"
+        out = I.format_text(
+            "int   x;\n" + region + "int   y = a * b;\n", BINARY, STYLE, LIMIT, WIDTH
+        )
+        self.assertEqual(out, "int x;\n" + region + "int y = a*b;\n")
+
+    @needs_binary
+    def test_trailing_comment_spacing_is_left_as_written(self):
+        src = "int a = 1;   // one\nint bb = 2;       // two\nint c = 3; // three\n"
+        self.assertEqual(I.format_text(src, BINARY, STYLE, LIMIT, WIDTH), src)
+
+    @needs_binary
+    def test_byte_order_mark_is_kept_and_the_first_directive_is_untouched(self):
+        src = "﻿#define AREA w * h\nint   x = a * b;\n"
+        self.assertEqual(
+            I.format_text(src, BINARY, STYLE, LIMIT, WIDTH),
+            "﻿#define AREA w * h\nint x = a*b;\n",
+        )
+
+    @needs_binary
+    def test_enum_stays_unshifted_when_the_shift_would_pass_the_limit(self):
+        name = "A" * (LIMIT - len("   = 0,") - WIDTH + 1)
+        src = f"enum E {{ {name} = 0, B }};\n"
+        out = I.format_text(src, BINARY, STYLE, LIMIT, WIDTH)
+        self.assertEqual(out, f"enum E\n{{\n  {name} = 0,\n  B\n}};\n")
+        self.assertEqual(I.format_text(out, BINARY, STYLE, LIMIT, WIDTH), out)
+        self.assertEqual(I.token_signature(src), I.token_signature(out))
+
     @needs_binary
     def test_format_keeps_tokens(self):
         out = I.format_text(SAMPLE, BINARY, STYLE, LIMIT, WIDTH)
@@ -1372,8 +1845,12 @@ class CommandLineTests(unittest.TestCase):
         )
         self.assertNotIn(": error: ", p.stderr)
         # line numbers refer to the rewritten file
-        for line in p.stderr.strip().split("\n"):
-            number = int(line.split(":")[1])
+        prefix = path + ":"
+        findings = [x for x in p.stderr.split("\n") if x.startswith(prefix)]
+        self.assertEqual(len(findings), 2)
+        for line in findings:
+            # the path may contain a colon, so the number is read after the known prefix
+            number = int(line[len(prefix) :].split(":", 1)[0])
             self.assertTrue(
                 formatted.split("\n")[number - 1].strip().startswith(("if(a)", "for("))
             )

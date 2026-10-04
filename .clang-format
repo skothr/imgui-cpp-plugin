@@ -5,4 +5,8 @@
 # (toolkit/tools/format/imtool.clang-format) and then a post-pass. Running
 # clang-format directly, from an editor or a hook, would give a different result,
 # so this file turns it off. Format with the tool instead.
+#
+# The setting applies to every C and C++ file in the repository that has no
+# nearer style file. It also stops include sorting (checked with clang-format
+# 14, 18, 21 and 23).
 DisableFormat: true
