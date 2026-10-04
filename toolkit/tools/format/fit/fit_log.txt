@@ -1,0 +1,236 @@
+# fit_config.py: clang-format version 23.1.2
+# corpus: 739 files; metric: share of original lines a line diff changes (clang-format alone, no post-pass)
+start config unchanged: 63.65%
+
+## fixed (not searched)
+  ColumnLimit: 140   [lines at most 140 columns]
+  IndentWidth: 2   [2-space indent]
+  TabWidth: 2   [2-space indent]
+  UseTab: Never   [no tabs]
+  BreakBeforeBraces: Custom   [brace rules below]
+  BraceWrapping.AfterFunction: true   [function brace on its own line]
+  BraceWrapping.AfterClass: true   [class brace on its own line]
+  BraceWrapping.AfterStruct: true   [struct brace on its own line]
+  BraceWrapping.BeforeCatch: true   [catch starts its own line, brace below it]
+  BraceWrapping.AfterControlStatement: Always   [control braces on their own line]
+  BraceWrapping.BeforeElse: true   [else on its own line (survey: 3192 of 3411)]
+  BraceWrapping.BeforeWhile: true   [needed for an indented do brace (survey: 4 of 4); the post-pass re-joins '} while(..);']
+  BraceWrapping.IndentBraces: true   [GNU layout: braces of if / for / while / do / switch / try / catch indented one level (try / catch by the owner's ruling; survey: 12 of 13)]   (start config: false)
+  SpaceBeforeParens: Never   [if( for( while( switch( and f(]   (start config: ControlStatements)
+  AllowShortBlocksOnASingleLine: Always   [a short braced body stays on the statement line]
+  AllowShortIfStatementsOnASingleLine: AllIfsAndElse   [same]
+  AllowShortLoopsOnASingleLine: true   [same]
+  Cpp11BracedListStyle: false   [spaces inside initializer braces: A a { x, y };]
+  SpaceBeforeCpp11BracedList: true   [space before an initializer brace: A a { x, y }; (owner's ruling; survey: 537 with, 1493 without)]
+  PointerAlignment: Right   [T *x, const T &x]
+  DerivePointerAlignment: false   [same]
+  SpaceAfterTemplateKeyword: false   [template<typename T>]
+  AlignConsecutiveAssignments: None   [owner's ruling: no '=' alignment]   (start config: Consecutive)
+  AlignConsecutiveDeclarations: None   [owner's ruling: no declaration alignment]   (start config: Consecutive)
+  AlignConsecutiveMacros: None   [owner's ruling: AlignConsecutive* off]   (start config: Consecutive)
+  AlignConsecutiveBitFields: None   [owner's ruling: AlignConsecutive* off]
+  AlignConsecutiveShortCaseStatements: {Enabled: false}   [owner's ruling: AlignConsecutive* off]
+  SortIncludes: false   [reorders lines; survey: 653 of 908 include groups are not sorted]
+  SortUsingDeclarations: false   [reorders lines]
+  FixNamespaceComments: false   [inserts comments]   (start config: true)
+  BreakStringLiterals: false   [splits string literals into several tokens]   (start config: true)
+  ReflowComments: false   [rewrites comment text]
+  SkipMacroDefinitionBody: true   [formatting a macro body adds and removes backslash line continuations (clang-format 18+)]
+after fixed rules: 42.91%
+
+## pass 1
+NamespaceIndentation: None=42.91%  Inner=42.87%  All=34.76%  -> All
+AccessModifierOffset: 0=34.76%  -2=34.34%  -1=34.76%  -> -2
+IndentCaseLabels: false=34.34%  true=34.89%  -> false
+IndentCaseBlocks: false=34.34%  true=34.34%  -> false  COIN-FLIP (<0.2pp among false, true): took false (first listed candidate)
+BraceWrapping.AfterCaseLabel: true=34.34%  false=34.40%  -> true  COIN-FLIP (<0.2pp among true, false): took true (survey)
+BraceWrapping.AfterEnum: false=34.34%  true=34.28%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+BraceWrapping.AfterNamespace: true=34.28%  false=34.54%  -> true
+BraceWrapping.AfterUnion: true=34.28%  false=34.31%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BraceWrapping.AfterExternBlock: false=34.28%  true=34.28%  -> false  COIN-FLIP (<0.2pp among false, true): took false (first listed candidate)
+BraceWrapping.BeforeLambdaBody: false=34.28%  true=34.32%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+BraceWrapping.SplitEmptyFunction: false=34.32%  true=34.30%  -> false  COIN-FLIP (<0.2pp among false, true): took false (survey)
+BraceWrapping.SplitEmptyRecord: false=34.32%  true=34.32%  -> false  COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+BraceWrapping.SplitEmptyNamespace: false=34.32%  true=34.32%  -> false  COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+AllowShortFunctionsOnASingleLine: All=34.32%  Inline=34.20%  InlineOnly=34.18%  Empty=34.58%  None=34.56%  -> All  COIN-FLIP (<0.2pp among All, Inline, InlineOnly): took All (survey)
+AllowShortCaseLabelsOnASingleLine: true=34.32%  false=34.30%  -> true  COIN-FLIP (<0.2pp among true, false): took true (survey)
+AllowShortLambdasOnASingleLine: All=34.32%  Inline=34.32%  Empty=34.35%  None=34.35%  -> All  COIN-FLIP (<0.2pp among All, Inline, Empty, None): took All (survey)
+AllowShortEnumsOnASingleLine: true=34.32%  false=34.32%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+AllowShortRecordOnASingleLine: EmptyAndAttached=34.32%  Never=34.32%  Empty=34.32%  Always=34.32%  -> Always  COIN-FLIP (<0.2pp among EmptyAndAttached, Never, Empty, Always): took Always (survey)
+AllowShortNamespacesOnASingleLine: false=34.32%  true=34.32%  -> false  COIN-FLIP (<0.2pp among false, true): took false (first listed candidate)
+SpaceInEmptyBlock: false=34.32%  true=34.16%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+SpaceInEmptyBraces: Never=34.16%  Block=34.16%  Always=34.15%  -> Block  COIN-FLIP (<0.2pp among Never, Block, Always): took Block (survey)
+SpaceAfterCStyleCast: false=34.16%  true=34.37%  -> false
+SpaceAfterLogicalNot: false=34.16%  true=34.86%  -> false
+SpaceBeforeRangeBasedForLoopColon: true=34.16%  false=34.49%  -> true
+SpaceBeforeCtorInitializerColon: true=34.16%  false=34.16%  -> true  COIN-FLIP (<0.2pp among true, false): took true (first listed candidate)
+SpaceBeforeInheritanceColon: true=34.16%  false=34.29%  -> true  COIN-FLIP (<0.2pp among true, false): took true (first listed candidate)
+SpacesBeforeTrailingComments: 1=34.16%  2=36.08%  -> 1
+SpacesInAngles: false=34.16%  true=37.18%  -> false
+SpacesInContainerLiterals: true=34.16%  false=34.16%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BitFieldColonSpacing: Both=34.16%  None=34.16%  Before=34.16%  After=34.16%  -> Both  COIN-FLIP (<0.2pp among Both, None, Before, After): took Both (first listed candidate)
+AlignTrailingComments: true=34.16%  false=34.21%  {Kind: Leave}=33.73%  {Kind: Always, OverEmptyLines: 1}=34.28%  -> {Kind: Leave}
+AlignOperands: AlignAfterOperator=33.73%  Align=33.73%  DontAlign=33.74%  -> AlignAfterOperator  COIN-FLIP (<0.2pp among AlignAfterOperator, Align, DontAlign): took AlignAfterOperator (start-config value)
+AlignAfterOpenBracket: Align=33.73%  DontAlign=33.82%  AlwaysBreak=33.95%  -> Align  COIN-FLIP (<0.2pp among Align, DontAlign): took Align (survey)
+PenaltyBreakBeforeFirstCallParameter: 19=33.73%  100=33.72%  1000=33.72%  -> 19  COIN-FLIP (<0.2pp among 19, 100, 1000): took 19 (first listed candidate)
+AlignEscapedNewlines: Left=33.73%  Right=33.73%  DontAlign=33.73%  -> Left  COIN-FLIP (<0.2pp among Left, Right, DontAlign): took Left (start-config value)
+AlignArrayOfStructures: None=33.73%  Left=33.72%  Right=33.73%  -> None  COIN-FLIP (<0.2pp among None, Left, Right): took None (first listed candidate)
+AlwaysBreakTemplateDeclarations: Yes=33.73%  MultiLine=34.56%  No=34.62%  -> Yes
+BreakTemplateDeclarations: Yes=33.73%  MultiLine=34.56%  No=34.62%  Leave=33.44%  -> Leave
+BinPackArguments: true=33.44%  false=33.44%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BinPackParameters: true=33.44%  false=33.47%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+AllowAllArgumentsOnNextLine: true=33.44%  false=33.44%  -> true  COIN-FLIP (<0.2pp among true, false): took true (first listed candidate)
+AllowAllParametersOfDeclarationOnNextLine: true=33.44%  false=33.44%  -> true  COIN-FLIP (<0.2pp among true, false): took true (first listed candidate)
+BreakBeforeBinaryOperators: None=33.44%  NonAssignment=33.50%  All=33.49%  -> None  COIN-FLIP (<0.2pp among None, NonAssignment, All): took None (start-config value)
+BreakBeforeTernaryOperators: true=33.44%  false=33.43%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BreakConstructorInitializers: BeforeComma=33.44%  BeforeColon=33.57%  AfterColon=33.64%  -> BeforeColon  COIN-FLIP (<0.2pp among BeforeComma, BeforeColon): took BeforeColon (survey)
+PackConstructorInitializers: BinPack=33.57%  Never=33.44%  CurrentLine=33.57%  NextLine=33.57%  -> BinPack  COIN-FLIP (<0.2pp among BinPack, Never, CurrentLine, NextLine): took BinPack (first listed candidate)
+ConstructorInitializerIndentWidth: 4=33.57%  2=33.50%  0=33.57%  -> 2  COIN-FLIP (<0.2pp among 4, 2, 0): took 2 (survey)
+BreakInheritanceList: BeforeColon=33.50%  BeforeComma=33.50%  AfterColon=33.50%  -> BeforeColon  COIN-FLIP (<0.2pp among BeforeColon, BeforeComma, AfterColon): took BeforeColon (first listed candidate)
+ContinuationIndentWidth: 2=33.50%  4=33.51%  -> 2  COIN-FLIP (<0.2pp among 2, 4): took 2 (start-config value)
+IndentWrappedFunctionNames: false=33.50%  true=33.50%  -> false  COIN-FLIP (<0.2pp among false, true): took false (first listed candidate)
+IndentPPDirectives: None=33.50%  AfterHash=33.57%  BeforeHash=33.57%  -> None  COIN-FLIP (<0.2pp among None, AfterHash, BeforeHash): took None (first listed candidate)
+LambdaBodyIndentation: Signature=33.50%  OuterScope=33.50%  -> Signature  COIN-FLIP (<0.2pp among Signature, OuterScope): took Signature (first listed candidate)
+MaxEmptyLinesToKeep: 2=33.50%  1=34.54%  3=33.12%  4=32.93%  -> 3  COIN-FLIP (<0.2pp among 3, 4): took 3 (first listed candidate)
+KeepEmptyLinesAtTheStartOfBlocks: true=33.12%  false=33.13%  -> true  COIN-FLIP (<0.2pp among true, false): took true (first listed candidate)
+EmptyLineBeforeAccessModifier: LogicalBlock=33.12%  Leave=33.12%  Never=33.17%  Always=33.12%  -> LogicalBlock  COIN-FLIP (<0.2pp among LogicalBlock, Leave, Never, Always): took LogicalBlock (first listed candidate)
+EmptyLineAfterAccessModifier: Never=33.12%  Leave=33.11%  Always=33.11%  -> Never  COIN-FLIP (<0.2pp among Never, Leave, Always): took Never (first listed candidate)
+CompactNamespaces: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (first listed candidate)
+PenaltyReturnTypeOnItsOwnLine: 60=33.12%  200=33.12%  1000=33.12%  -> 60  COIN-FLIP (<0.2pp among 60, 200, 1000): took 60 (first listed candidate)
+PenaltyBreakAssignment: 2=33.12%  20=33.12%  100=33.11%  -> 2  COIN-FLIP (<0.2pp among 2, 20, 100): took 2 (first listed candidate)
+PenaltyExcessCharacter: 1000000=33.12%  100=33.12%  -> 1000000  COIN-FLIP (<0.2pp among 1000000, 100): took 1000000 (first listed candidate)
+Standard: c++20=33.12%  Latest=33.12%  -> c++20  COIN-FLIP (<0.2pp among c++20, Latest): took c++20 (start-config value)
+after pass 1: 33.12%
+
+## pass 2
+NamespaceIndentation: None=41.80%  Inner=41.77%  All=33.12%  -> All
+AccessModifierOffset: 0=33.54%  -2=33.12%  -1=33.54%  -> -2
+IndentCaseLabels: false=33.12%  true=33.67%  -> false
+IndentCaseBlocks: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (current value)
+BraceWrapping.AfterCaseLabel: true=33.12%  false=33.19%  -> true  COIN-FLIP (<0.2pp among true, false): took true (survey)
+BraceWrapping.AfterEnum: false=33.19%  true=33.12%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+BraceWrapping.AfterNamespace: true=33.12%  false=33.39%  -> true
+BraceWrapping.AfterUnion: true=33.12%  false=33.16%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BraceWrapping.AfterExternBlock: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (current value)
+BraceWrapping.BeforeLambdaBody: false=33.08%  true=33.12%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+BraceWrapping.SplitEmptyFunction: false=33.12%  true=33.18%  -> false  COIN-FLIP (<0.2pp among false, true): took false (survey)
+BraceWrapping.SplitEmptyRecord: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+BraceWrapping.SplitEmptyNamespace: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+AllowShortFunctionsOnASingleLine: All=33.12%  Inline=33.08%  InlineOnly=33.03%  Empty=33.46%  None=33.49%  -> All  COIN-FLIP (<0.2pp among All, Inline, InlineOnly): took All (survey)
+AllowShortCaseLabelsOnASingleLine: true=33.12%  false=33.10%  -> true  COIN-FLIP (<0.2pp among true, false): took true (survey)
+AllowShortLambdasOnASingleLine: All=33.12%  Inline=33.12%  Empty=33.16%  None=33.16%  -> All  COIN-FLIP (<0.2pp among All, Inline, Empty, None): took All (survey)
+AllowShortEnumsOnASingleLine: true=33.12%  false=33.12%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+AllowShortRecordOnASingleLine: EmptyAndAttached=33.13%  Never=33.13%  Empty=33.13%  Always=33.12%  -> Always  COIN-FLIP (<0.2pp among EmptyAndAttached, Never, Empty, Always): took Always (survey)
+AllowShortNamespacesOnASingleLine: false=33.12%  true=33.13%  -> false  COIN-FLIP (<0.2pp among false, true): took false (current value)
+SpaceInEmptyBlock: false=33.12%  true=33.12%  -> true  COIN-FLIP (<0.2pp among false, true): took true (survey)
+SpaceInEmptyBraces: Never=33.12%  Block=33.12%  Always=33.11%  -> Block  COIN-FLIP (<0.2pp among Never, Block, Always): took Block (survey)
+SpaceAfterCStyleCast: false=33.12%  true=33.35%  -> false
+SpaceAfterLogicalNot: false=33.12%  true=33.83%  -> false
+SpaceBeforeRangeBasedForLoopColon: true=33.12%  false=33.45%  -> true
+SpaceBeforeCtorInitializerColon: true=33.12%  false=33.17%  -> true  COIN-FLIP (<0.2pp among true, false): took true (current value)
+SpaceBeforeInheritanceColon: true=33.12%  false=33.26%  -> true  COIN-FLIP (<0.2pp among true, false): took true (current value)
+SpacesBeforeTrailingComments: 1=33.12%  2=33.36%  -> 1
+SpacesInAngles: false=33.12%  true=36.45%  -> false
+SpacesInContainerLiterals: true=33.12%  false=33.12%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BitFieldColonSpacing: Both=33.12%  None=33.12%  Before=33.12%  After=33.12%  -> Both  COIN-FLIP (<0.2pp among Both, None, Before, After): took Both (current value)
+AlignTrailingComments: true=33.56%  false=33.61%  {Kind: Leave}=33.12%  {Kind: Always, OverEmptyLines: 1}=33.68%  -> {Kind: Leave}
+AlignOperands: AlignAfterOperator=33.12%  Align=33.12%  DontAlign=33.13%  -> AlignAfterOperator  COIN-FLIP (<0.2pp among AlignAfterOperator, Align, DontAlign): took AlignAfterOperator (start-config value)
+AlignAfterOpenBracket: Align=33.12%  DontAlign=33.22%  AlwaysBreak=33.35%  -> Align  COIN-FLIP (<0.2pp among Align, DontAlign): took Align (survey)
+PenaltyBreakBeforeFirstCallParameter: 19=33.12%  100=33.12%  1000=33.12%  -> 19  COIN-FLIP (<0.2pp among 19, 100, 1000): took 19 (current value)
+AlignEscapedNewlines: Left=33.12%  Right=33.12%  DontAlign=33.12%  -> Left  COIN-FLIP (<0.2pp among Left, Right, DontAlign): took Left (start-config value)
+AlignArrayOfStructures: None=33.12%  Left=33.11%  Right=33.12%  -> None  COIN-FLIP (<0.2pp among None, Left, Right): took None (current value)
+AlwaysBreakTemplateDeclarations: Yes=33.12%  MultiLine=33.12%  No=33.12%  -> Yes  COIN-FLIP (<0.2pp among Yes, MultiLine, No): took Yes (start-config value)
+BreakTemplateDeclarations: Yes=33.41%  MultiLine=34.25%  No=34.30%  Leave=33.12%  -> Leave
+BinPackArguments: true=33.12%  false=33.13%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BinPackParameters: true=33.12%  false=33.15%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+AllowAllArgumentsOnNextLine: true=33.12%  false=33.12%  -> true  COIN-FLIP (<0.2pp among true, false): took true (current value)
+AllowAllParametersOfDeclarationOnNextLine: true=33.12%  false=33.12%  -> true  COIN-FLIP (<0.2pp among true, false): took true (current value)
+BreakBeforeBinaryOperators: None=33.12%  NonAssignment=33.19%  All=33.18%  -> None  COIN-FLIP (<0.2pp among None, NonAssignment, All): took None (start-config value)
+BreakBeforeTernaryOperators: true=33.12%  false=33.12%  -> true  COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+BreakConstructorInitializers: BeforeComma=32.99%  BeforeColon=33.12%  AfterColon=33.26%  -> BeforeColon  COIN-FLIP (<0.2pp among BeforeComma, BeforeColon): took BeforeColon (survey)
+PackConstructorInitializers: BinPack=33.12%  Never=32.97%  CurrentLine=33.16%  NextLine=33.12%  -> BinPack  COIN-FLIP (<0.2pp among BinPack, Never, CurrentLine, NextLine): took BinPack (current value)
+ConstructorInitializerIndentWidth: 4=33.19%  2=33.12%  0=33.19%  -> 2  COIN-FLIP (<0.2pp among 4, 2, 0): took 2 (survey)
+BreakInheritanceList: BeforeColon=33.12%  BeforeComma=33.12%  AfterColon=33.12%  -> BeforeColon  COIN-FLIP (<0.2pp among BeforeColon, BeforeComma, AfterColon): took BeforeColon (current value)
+ContinuationIndentWidth: 2=33.12%  4=33.13%  -> 2  COIN-FLIP (<0.2pp among 2, 4): took 2 (start-config value)
+IndentWrappedFunctionNames: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (current value)
+IndentPPDirectives: None=33.12%  AfterHash=33.19%  BeforeHash=33.19%  -> None  COIN-FLIP (<0.2pp among None, AfterHash, BeforeHash): took None (current value)
+LambdaBodyIndentation: Signature=33.12%  OuterScope=33.12%  -> Signature  COIN-FLIP (<0.2pp among Signature, OuterScope): took Signature (current value)
+MaxEmptyLinesToKeep: 2=33.50%  1=34.54%  3=33.12%  4=32.93%  -> 3  COIN-FLIP (<0.2pp among 3, 4): took 3 (current value)
+KeepEmptyLinesAtTheStartOfBlocks: true=33.12%  false=33.13%  -> true  COIN-FLIP (<0.2pp among true, false): took true (current value)
+EmptyLineBeforeAccessModifier: LogicalBlock=33.12%  Leave=33.12%  Never=33.17%  Always=33.12%  -> LogicalBlock  COIN-FLIP (<0.2pp among LogicalBlock, Leave, Never, Always): took LogicalBlock (current value)
+EmptyLineAfterAccessModifier: Never=33.12%  Leave=33.11%  Always=33.11%  -> Never  COIN-FLIP (<0.2pp among Never, Leave, Always): took Never (current value)
+CompactNamespaces: false=33.12%  true=33.12%  -> false  COIN-FLIP (<0.2pp among false, true): took false (current value)
+PenaltyReturnTypeOnItsOwnLine: 60=33.12%  200=33.12%  1000=33.12%  -> 60  COIN-FLIP (<0.2pp among 60, 200, 1000): took 60 (current value)
+PenaltyBreakAssignment: 2=33.12%  20=33.12%  100=33.11%  -> 2  COIN-FLIP (<0.2pp among 2, 20, 100): took 2 (current value)
+PenaltyExcessCharacter: 1000000=33.12%  100=33.12%  -> 1000000  COIN-FLIP (<0.2pp among 1000000, 100): took 1000000 (current value)
+Standard: c++20=33.12%  Latest=33.12%  -> c++20  COIN-FLIP (<0.2pp among c++20, Latest): took c++20 (start-config value)
+after pass 2: 33.12%
+no option changed in this pass; converged
+removed AlwaysBreakTemplateDeclarations: deprecated spelling of BreakTemplateDeclarations; share unchanged
+removed SpaceInEmptyBlock: deprecated spelling of SpaceInEmptyBraces; share unchanged
+
+## informational (measured against the final config, never adopted)
+ColumnLimit: 140=33.12%  0=30.06%  120=33.36%  160=33.21%   [the rule fixes 140; 0 makes clang-format keep the input's line breaks]
+PointerAlignment: Right=33.12%  Left=35.46%   [the rule fixes Right]
+SpaceBeforeParens: Never=33.12%  ControlStatements=38.00%   [the rule fixes Never]
+BraceWrapping.IndentBraces: true=33.12%  false=51.64%   [the rule fixes true]
+Cpp11BracedListStyle: false=33.12%  true=33.11%   [the rule fixes false]
+SpaceBeforeCpp11BracedList: true=33.12%  false=33.09%   [the ruling fixes true]
+AlignConsecutiveAssignments: None=33.12%  Consecutive=33.69%   [the ruling fixes None]
+AlignConsecutiveDeclarations: None=33.12%  Consecutive=34.55%   [the ruling fixes None]
+AlignConsecutiveShortCaseStatements: {Enabled: false}=33.12%  {Enabled: true}=32.63%   [the ruling fixes off]
+
+## coin-flips (difference under 0.2 percentage points)
+  IndentCaseBlocks: COIN-FLIP (<0.2pp among false, true): took false (current value)
+  BraceWrapping.AfterCaseLabel: COIN-FLIP (<0.2pp among true, false): took true (survey)
+  BraceWrapping.AfterEnum: COIN-FLIP (<0.2pp among false, true): took true (survey)
+  BraceWrapping.AfterUnion: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  BraceWrapping.AfterExternBlock: COIN-FLIP (<0.2pp among false, true): took false (current value)
+  BraceWrapping.BeforeLambdaBody: COIN-FLIP (<0.2pp among false, true): took true (survey)
+  BraceWrapping.SplitEmptyFunction: COIN-FLIP (<0.2pp among false, true): took false (survey)
+  BraceWrapping.SplitEmptyRecord: COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+  BraceWrapping.SplitEmptyNamespace: COIN-FLIP (<0.2pp among false, true): took false (start-config value)
+  AllowShortFunctionsOnASingleLine: COIN-FLIP (<0.2pp among All, Inline, InlineOnly): took All (survey)
+  AllowShortCaseLabelsOnASingleLine: COIN-FLIP (<0.2pp among true, false): took true (survey)
+  AllowShortLambdasOnASingleLine: COIN-FLIP (<0.2pp among All, Inline, Empty, None): took All (survey)
+  AllowShortEnumsOnASingleLine: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  AllowShortRecordOnASingleLine: COIN-FLIP (<0.2pp among EmptyAndAttached, Never, Empty, Always): took Always (survey)
+  AllowShortNamespacesOnASingleLine: COIN-FLIP (<0.2pp among false, true): took false (current value)
+  SpaceInEmptyBlock: COIN-FLIP (<0.2pp among false, true): took true (survey)
+  SpaceInEmptyBraces: COIN-FLIP (<0.2pp among Never, Block, Always): took Block (survey)
+  SpaceBeforeCtorInitializerColon: COIN-FLIP (<0.2pp among true, false): took true (current value)
+  SpaceBeforeInheritanceColon: COIN-FLIP (<0.2pp among true, false): took true (current value)
+  SpacesInContainerLiterals: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  BitFieldColonSpacing: COIN-FLIP (<0.2pp among Both, None, Before, After): took Both (current value)
+  AlignOperands: COIN-FLIP (<0.2pp among AlignAfterOperator, Align, DontAlign): took AlignAfterOperator (start-config value)
+  AlignAfterOpenBracket: COIN-FLIP (<0.2pp among Align, DontAlign): took Align (survey)
+  PenaltyBreakBeforeFirstCallParameter: COIN-FLIP (<0.2pp among 19, 100, 1000): took 19 (current value)
+  AlignEscapedNewlines: COIN-FLIP (<0.2pp among Left, Right, DontAlign): took Left (start-config value)
+  AlignArrayOfStructures: COIN-FLIP (<0.2pp among None, Left, Right): took None (current value)
+  BinPackArguments: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  BinPackParameters: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  AllowAllArgumentsOnNextLine: COIN-FLIP (<0.2pp among true, false): took true (current value)
+  AllowAllParametersOfDeclarationOnNextLine: COIN-FLIP (<0.2pp among true, false): took true (current value)
+  BreakBeforeBinaryOperators: COIN-FLIP (<0.2pp among None, NonAssignment, All): took None (start-config value)
+  BreakBeforeTernaryOperators: COIN-FLIP (<0.2pp among true, false): took true (start-config value)
+  BreakConstructorInitializers: COIN-FLIP (<0.2pp among BeforeComma, BeforeColon): took BeforeColon (survey)
+  PackConstructorInitializers: COIN-FLIP (<0.2pp among BinPack, Never, CurrentLine, NextLine): took BinPack (current value)
+  ConstructorInitializerIndentWidth: COIN-FLIP (<0.2pp among 4, 2, 0): took 2 (survey)
+  BreakInheritanceList: COIN-FLIP (<0.2pp among BeforeColon, BeforeComma, AfterColon): took BeforeColon (current value)
+  ContinuationIndentWidth: COIN-FLIP (<0.2pp among 2, 4): took 2 (start-config value)
+  IndentWrappedFunctionNames: COIN-FLIP (<0.2pp among false, true): took false (current value)
+  IndentPPDirectives: COIN-FLIP (<0.2pp among None, AfterHash, BeforeHash): took None (current value)
+  LambdaBodyIndentation: COIN-FLIP (<0.2pp among Signature, OuterScope): took Signature (current value)
+  MaxEmptyLinesToKeep: COIN-FLIP (<0.2pp among 3, 4): took 3 (current value)
+  KeepEmptyLinesAtTheStartOfBlocks: COIN-FLIP (<0.2pp among true, false): took true (current value)
+  EmptyLineBeforeAccessModifier: COIN-FLIP (<0.2pp among LogicalBlock, Leave, Never, Always): took LogicalBlock (current value)
+  EmptyLineAfterAccessModifier: COIN-FLIP (<0.2pp among Never, Leave, Always): took Never (current value)
+  CompactNamespaces: COIN-FLIP (<0.2pp among false, true): took false (current value)
+  PenaltyReturnTypeOnItsOwnLine: COIN-FLIP (<0.2pp among 60, 200, 1000): took 60 (current value)
+  PenaltyBreakAssignment: COIN-FLIP (<0.2pp among 2, 20, 100): took 2 (current value)
+  PenaltyExcessCharacter: COIN-FLIP (<0.2pp among 1000000, 100): took 1000000 (current value)
+  Standard: COIN-FLIP (<0.2pp among c++20, Latest): took c++20 (start-config value)
+  AlwaysBreakTemplateDeclarations: COIN-FLIP (<0.2pp among Yes, MultiLine, No): took Yes (start-config value)
+
+final: 33.12%  (start config: 63.65%)
+wrote final.clang-format
